@@ -1,14 +1,16 @@
 // ==UserScript==
+// @author       pedro-mass
+// @copyright    2024, Pedro Mass (https://github.com/pedro-mass)
+// @description  When doing puzzles, this will show you your stats
+// @grant        none
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=lichess.org
+// @license      GNU GPLv3
+// @match        https://lichess.org/training/*
 // @name         Lichess: Training: Stats for Current Run
 // @namespace    http://tampermonkey.net/
-// @version      1.0.1
-// @description  When doing puzzles, this will show you your stats
-// @copyright    2024, Pedro Mass (https://github.com/pedro-mass)
-// @author       pedro-mass
-// @match        https://lichess.org/training/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=lichess.org
-// @grant        none
 // @run-at       document-idle
+// @version      1.0.1
+// ==/UserScript==
 
 const selectors = {
   results: ".result-empty",
