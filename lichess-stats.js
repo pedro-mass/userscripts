@@ -23,7 +23,9 @@ const constants = {
 // waitForKeyElements(selectors.results, run);
 wait_element(document, selectors.results).then(run);
 
+// ------------------
 // helper functions
+// ------------------
 
 // src: https://stackoverflow.com/a/47406751/2911615
 function wait_element(root, selector) {
