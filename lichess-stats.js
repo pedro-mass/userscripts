@@ -29,12 +29,12 @@ wait_element(document, selectors.results).then(run);
 
 // src: https://stackoverflow.com/a/47406751/2911615
 function wait_element(root, selector) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     new MutationObserver(check).observe(root, {
       childList: true,
       subtree: true,
     });
-    function check(changes, observer) {
+    function check(_changes, observer) {
       let element = root.querySelector(selector);
       if (element) {
         observer.disconnect();
