@@ -1,4 +1,6 @@
 // ==UserScript==
+// @name         Lichess: Training: Stats for Current Run
+// @version      1.0.2
 // @author       pedro-mass
 // @copyright    2024, Pedro Mass (https://github.com/pedro-mass)
 // @description  When doing puzzles, this will show you your stats
@@ -6,10 +8,9 @@
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=lichess.org
 // @license      GNU GPLv3
 // @match        https://lichess.org/training/*
-// @name         Lichess: Training: Stats for Current Run
+// @match        https://lichess.org/training
 // @namespace    http://tampermonkey.net/
 // @run-at       document-idle
-// @version      1.0.1
 // ==/UserScript==
 
 const selectors = {
@@ -22,15 +23,17 @@ const constants = {
   success: "result-true",
 };
 
-// waitForKeyElements(selectors.results, run);
-wait_element(document, selectors.results).then(run);
+waitForElement(document, selectors.results).then(() =>
+  watchElement(document.querySelector(selectors.puzzleHolder), run)
+);
+
 
 // ------------------
 // helper functions
 // ------------------
 
 // src: https://stackoverflow.com/a/47406751/2911615
-function wait_element(root, selector) {
+function waitForElement(root, selector) {
   return new Promise((resolve, _reject) => {
     new MutationObserver(check).observe(root, {
       childList: true,
@@ -46,11 +49,14 @@ function wait_element(root, selector) {
   });
 }
 
-function run() {
-  console.log({
-    fn: "run",
-    msg: "starting",
+function watchElement(root = document, onChange) {
+  new MutationObserver(onChange).observe(root, {
+    childList: true,
+    subtree: true,
   });
+}
+
+function run() {
   const statsElem = getStatsElem();
   displayFailures(statsElem);
   let showFailures = true;
