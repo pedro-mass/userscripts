@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Lichess: Training: Stats for Current Run
-// @version      1.0.2
+// @version      1.1.0
 // @author       pedro-mass
 // @copyright    2024, Pedro Mass (https://github.com/pedro-mass)
 // @description  When doing puzzles, this will show you your stats
@@ -13,9 +13,12 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+const ids = {
+  stats: "pm-stats",
+};
 const selectors = {
   results: ".result-empty",
-  stats: "#pm-stats",
+  stats: `#${ids.stats}`,
   puzzleHolder: ".puzzle__session",
 };
 const constants = {
@@ -23,14 +26,31 @@ const constants = {
   success: "result-true",
 };
 
-waitForElement(document, selectors.results).then(() =>
-  watchElement(document.querySelector(selectors.puzzleHolder), run)
-);
+waitForElement(document, selectors.results).then(() => {
+  run();
+  watchElement(document.querySelector(selectors.puzzleHolder), (changes) => {
+    if (wasTextChange(changes)) return;
 
+    run();
+  });
+});
 
 // ------------------
 // helper functions
 // ------------------
+
+/**
+ * @param {MutationRecord[]} changes
+ */
+function wasTextChange(changes) {
+  if (!changes || changes.length === 0) return;
+
+  const firstChange = changes[0];
+
+  return (
+    firstChange.target.id === ids.stats && firstChange.type === "childList"
+  );
+}
 
 // src: https://stackoverflow.com/a/47406751/2911615
 function waitForElement(root, selector) {
@@ -62,9 +82,9 @@ function run() {
   let showFailures = true;
 
   statsElem.addEventListener("click", function flipDisplay() {
-    showFailures ? displayFailures(statsElem) : displaySuccesses(statsElem);
-
     showFailures = !showFailures;
+
+    showFailures ? displayFailures(statsElem) : displaySuccesses(statsElem);
   });
 }
 
@@ -78,7 +98,7 @@ function getStatsElem() {
 
 function createStatsElem() {
   const statsElem = document.createElement("div");
-  statsElem.id = "pm-stats";
+  statsElem.id = ids.stats;
   document.querySelector(selectors.puzzleHolder).appendChild(statsElem);
 
   return statsElem;
