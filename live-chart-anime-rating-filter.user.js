@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         LiveChart.me Minimum Rating Filter with Themed UI (Persistent)
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @author       pedro-mass
-// @copyright    2024, Pedro Mass (https://github.com/pedro-mass)
+// @copyright    2025, Pedro Mass (https://github.com/pedro-mass)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=livechart.me
 // @license      GNU GPLv3
 // @description  Adds a minimum rating filter to anime list on LiveChart.me with styled UI and persistent value
