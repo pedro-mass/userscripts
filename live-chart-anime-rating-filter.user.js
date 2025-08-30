@@ -1,13 +1,12 @@
 // ==UserScript==
-// @name         LiveChart.me Minimum Rating Filter with Themed UI
+// @name         LiveChart.me Minimum Rating Filter with Themed UI (Persistent)
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @author       pedro-mass
 // @copyright    2024, Pedro Mass (https://github.com/pedro-mass)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=livechart.me
 // @license      GNU GPLv3
-// @description  Adds a minimum rating filter to anime list on LiveChart.me with visible count, alert if no anime match, reset button, and styled UI
-// @author       Your Name
+// @description  Adds a minimum rating filter to anime list on LiveChart.me with visible count, alert if no anime match, reset button, styled UI, and persistent value
 // @match        https://www.livechart.me/*
 // @run-at       document-idle
 // @grant        none
@@ -15,6 +14,8 @@
 
 (function() {
     'use strict';
+
+    const STORAGE_KEY = 'pm_min_rating';
 
     init();
 
@@ -40,14 +41,14 @@
             fontSize: "0.9em"
         });
 
-        // Input field styled to match LiveChart
         const input = Object.assign(document.createElement("input"), {
             type: "number",
             placeholder: "7.6",
             min: "0",
             max: "10",
             step: "0.1",
-            id: "pm-rating-input"
+            id: "pm-rating-input",
+            value: localStorage.getItem(STORAGE_KEY) || ""
         });
         Object.assign(input.style, {
             width: "4em",
@@ -61,7 +62,6 @@
         label.htmlFor = input.id;
         label.appendChild(input);
 
-        // Add to page
         const filters = container.querySelectorAll('.option-v2.hide-for-small-only');
         const lastFilter = filters[filters.length - 1];
         if (!lastFilter) return console.error("Could NOT find the filters to add onto");
@@ -71,12 +71,19 @@
         input.addEventListener("input", debounce((event) => {
             const value = toNumber(event.target.value, 0);
             filterAnimes(value);
+            // Save to localStorage
+            localStorage.setItem(STORAGE_KEY, value);
         }, 300));
+
+        // Apply filter on page load if a value is saved
+        const savedValue = toNumber(localStorage.getItem(STORAGE_KEY), 0);
+        if (savedValue > 0) {
+            filterAnimes(savedValue);
+        }
     }
 
     function filterAnimes(minRating = 0) {
         const animes = document.querySelectorAll('.anime');
-
         animes.forEach(anime => {
             const rating = parseFloat(anime.querySelector('.anime-avg-user-rating')?.innerText) || 0;
             if (rating < minRating) {
