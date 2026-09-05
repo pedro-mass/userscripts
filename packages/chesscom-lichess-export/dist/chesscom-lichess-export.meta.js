@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chess.com → Lichess Export
 // @namespace    https://github.com/pedro-mass/userscripts/chesscom-lichess-export
-// @version      0.1.3
+// @version      0.1.4
 // @author       pedro-mass
 // @description  One-click PGN export from Chess.com to Lichess (game-over modal, sidebar, share dialog)
 // @license      GPL-3.0-only

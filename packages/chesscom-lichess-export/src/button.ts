@@ -4,6 +4,7 @@ import {
   SHARE_MODAL_SELECTORS,
   WIN_MODAL_TEXT,
 } from './config';
+import { LICHESS_THEME } from './ui/lichess-theme';
 
 const NS = `cc2l_${Math.random().toString(36).slice(2, 10)}`;
 const STYLE_ID = `${NS}_style`;
@@ -106,13 +107,15 @@ function injectStyles(): void {
       padding: 2rem 4rem;
       margin-top: 8px;
       border: none;
-      border-radius: 0.5em;
-      background: #5a8f3a;
-      color: #ffffff;
+      border-radius: ${LICHESS_THEME.radius};
+      background: ${LICHESS_THEME.green};
+      color: ${LICHESS_THEME.textOnBrand};
       font-size: 22px;
-      font-weight: 600;
+      font-weight: 500;
+      text-shadow: ${LICHESS_THEME.textShadow};
+      box-shadow: ${LICHESS_THEME.buttonShadow};
       cursor: pointer;
-      transition: background 0.15s;
+      transition: background 0.15s, box-shadow 0.15s;
       box-sizing: border-box;
     }
     [data-cy="game-over-modal-shell-buttons"] .cc2l-btn,
@@ -132,7 +135,9 @@ function injectStyles(): void {
       width: 20px;
       height: 20px;
     }
-    .cc2l-btn:hover:not(:disabled) { background: #4a7a30; }
+    .cc2l-btn:hover:not(:disabled) {
+      background: ${LICHESS_THEME.greenHover};
+    }
     .cc2l-btn:disabled { opacity: 0.65; cursor: not-allowed; }
     .cc2l-share-btn {
       display: flex;
@@ -143,15 +148,19 @@ function injectStyles(): void {
       margin-top: 12px;
       padding: 12px 16px;
       border: none;
-      border-radius: 0.5em;
-      background: #5a8f3a;
-      color: #fff;
+      border-radius: ${LICHESS_THEME.radius};
+      background: ${LICHESS_THEME.green};
+      color: ${LICHESS_THEME.textOnBrand};
       font-size: 16px;
-      font-weight: 600;
+      font-weight: 500;
+      text-shadow: ${LICHESS_THEME.textShadow};
+      box-shadow: ${LICHESS_THEME.buttonShadow};
       cursor: pointer;
       transition: background 0.15s;
     }
-    .cc2l-share-btn:hover:not(:disabled) { background: #4a7a30; }
+    .cc2l-share-btn:hover:not(:disabled) {
+      background: ${LICHESS_THEME.greenHover};
+    }
     .cc2l-share-btn:disabled { opacity: 0.65; cursor: not-allowed; }
   `;
   document.head.appendChild(style);
