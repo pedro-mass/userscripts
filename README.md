@@ -1,46 +1,57 @@
 # userscripts
 
-Personal browser userscripts (Tampermonkey / Violentmonkey), built as a pnpm monorepo. Each package produces its own `.user.js` file.
+Personal browser userscripts (Tampermonkey / Violentmonkey), built as a pnpm monorepo.
+
+**Actively maintained:** [LiveChart.me minimum rating filter](packages/live-chart-filter/) only. Other packages are archived in-repo and no longer supported.
 
 ## Layout
 
 ```
 packages/
-  shared/              # shared DOM helpers (not a userscript)
-  lichess-stats/
-  live-chart-filter/
-  udemy-section-time/
-  lattice-goal-ideal/
-legacy/                # archived flat sources (superseded)
+  live-chart-filter/   # maintained
+  shared/              # shared DOM helpers
+  lichess-stats/       # archived (unsupported)
+  udemy-section-time/  # archived (unsupported)
+  lattice-goal-ideal/  # archived (unsupported)
+legacy/                # pre-monorepo flat sources
 ```
 
-## Quick start
+## Quick start (LiveChart)
 
 ```bash
 pnpm install
-pnpm build                  # build all packages
-pnpm dev:lichess            # HMR dev server (any package: dev:<name>)
+pnpm build              # packages/live-chart-filter only
+pnpm dev                # HMR dev server
 ```
 
-Install a built script: open `packages/<name>/dist/<name>.user.js` in the browser (or use Tampermonkey's install-from-file).
+Install: open `packages/live-chart-filter/dist/live-chart-filter.user.js` in Tampermonkey, or use the [Greasy Fork listing](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent).
 
-**Publishing:** see [docs/publishing.md](docs/publishing.md). Greasy Fork profile: [pedro-mass](https://greasyfork.org/en/users/111366-pedro-mass).
+**Publishing:** [docs/publishing.md](docs/publishing.md)
 
-## Packages
+## Maintained package
 
 | Package | Site | Greasy Fork | Output |
 | --- | --- | --- | --- |
-| `lichess-stats` | lichess.org/training | [522313](https://greasyfork.org/en/scripts/522313-lichess-training-stats-for-current-run) | `dist/lichess-stats.user.js` |
 | `live-chart-filter` | livechart.me | [547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) | `dist/live-chart-filter.user.js` |
-| `udemy-section-time` | udemy.com | [28295](https://greasyfork.org/en/scripts/28295-udemy-show-section-time) | `dist/udemy-section-time.user.js` |
-| `lattice-goal-ideal` | latticehq.com/goals | [profile](https://greasyfork.org/en/users/111366-pedro-mass) | `dist/lattice-goal-ideal.user.js` |
+
+## Archived (unsupported)
+
+These remain in the repo for history only. Do not expect fixes or Greasy Fork updates.
+
+| Package | Former GF listing |
+| --- | --- |
+| `lichess-stats` | [522313](https://greasyfork.org/en/scripts/522313-lichess-training-stats-for-current-run) |
+| `udemy-section-time` | [28295](https://greasyfork.org/en/scripts/28295-udemy-show-section-time) |
+| `lattice-goal-ideal` | [profile](https://greasyfork.org/en/users/111366-pedro-mass) |
+
+Rebuild all packages (including archived): `pnpm build:all`
 
 ## Add a new userscript
 
-1. Copy `packages/lichess-stats` as a template (new folder under `packages/`).
+1. Copy `packages/live-chart-filter/` as a template.
 2. Update `vite.config.ts` metadata (`match`, `name`, `version`, update URLs).
 3. Add `"@userscripts/shared": "workspace:*"` if you need shared helpers.
-4. Register the package in `pnpm-workspace.yaml` (already uses `packages/*`).
+4. Document in `docs/publishing.md` and this README.
 
 ## Extension path
 

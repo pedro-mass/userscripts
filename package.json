@@ -3,11 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm -r build",
-    "dev:lichess": "pnpm --filter @userscripts/lichess-stats dev",
-    "dev:live-chart": "pnpm --filter @userscripts/live-chart-filter dev",
-    "dev:udemy": "pnpm --filter @userscripts/udemy-section-time dev",
-    "dev:lattice": "pnpm --filter @userscripts/lattice-goal-ideal dev"
+    "build": "pnpm --filter @userscripts/live-chart-filter build",
+    "build:all": "pnpm -r build",
+    "dev": "pnpm --filter @userscripts/live-chart-filter dev"
   },
   "packageManager": "pnpm@10.12.1"
 }
