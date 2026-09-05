@@ -1,10 +1,21 @@
 # Attribution
 
-Logic ported and adapted from [chesscom-to-lichess-export](https://github.com/InvictusNavarchus/chesscom-to-lichess-export) by Invictus Navarchus (GPL-3.0-only).
+This userscript is a derivative work under **GPL-3.0-only**.
 
-Changes in this package:
+## Upstream
 
-- `data-cy` anchor selectors for current chess.com DOM
+- **Project:** [chesscom-to-lichess-export](https://github.com/InvictusNavarchus/chesscom-to-lichess-export)
+- **Author:** Invictus Navarchus
+- **License:** GPL-3.0-only
+
+Ported concepts: share-dialog PGN extraction, Lichess `/api/import`, GM storage cache, polling injection loop.
+
+## This fork (pedro-mass/userscripts)
+
+- `data-cy` anchor selectors and win-modal text fallback
 - Share modal export button
-- `/analysis/game/*` URL support
-- Monorepo layout under `pedro-mass/userscripts`
+- `/analysis/game/*` URL support and callback API fallback
+- Distinct UI (dark + Lichess green accent, separate labels)
+- Monorepo packaging and raw GitHub auto-update URLs
+
+Full license text: [LICENSE](./LICENSE).
