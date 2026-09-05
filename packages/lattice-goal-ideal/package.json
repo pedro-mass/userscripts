@@ -1,0 +1,19 @@
+{
+  "name": "@userscripts/lattice-goal-ideal",
+  "private": true,
+  "version": "1.4.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@userscripts/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vite": "^6.3.5",
+    "vite-plugin-monkey": "^6.0.0"
+  }
+}
