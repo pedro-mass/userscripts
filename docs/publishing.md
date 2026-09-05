@@ -32,17 +32,19 @@ If the listing still points at a repo-root `.user.js` file:
 | | |
 | --- | --- |
 | **Package** | `packages/chesscom-lichess-export/` |
-| **Raw install** | `https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesscom-lichess-export/dist/chesscom-lichess-export.user.js` |
-| **Auto-update** | `@updateURL` / `@downloadURL` in built header (Tampermonkey) |
+| **Greasy Fork** | *(create listing — [publish guide](./greasyfork-chesscom-lichess-export.md))* |
+| **Sync URL** | `https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesscom-lichess-export/dist/chesscom-lichess-export.user.js` |
+| **Auto-update** | GF install, or `@updateURL` on raw GitHub installs |
 
 ### Release workflow
 
 1. Edit `packages/chesscom-lichess-export/src/`.
 2. Bump `version` in `vite.config.ts` and `package.json`.
 3. `pnpm build:chesscom`, commit `dist/`, push to `main`.
-4. Reinstall or wait for Tampermonkey update check on raw URL installs.
+4. Greasy Fork: **Sync now** on the listing (or wait for webhook / daily poll).
+5. Tampermonkey updates from Greasy Fork on the next check.
 
-Greasy Fork listing optional later; raw GitHub is enough for personal ship.
+Step-by-step first publish: [greasyfork-chesscom-lichess-export.md](./greasyfork-chesscom-lichess-export.md).
 
 ## Release workflow (live-chart-filter)
 
