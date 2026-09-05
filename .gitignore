@@ -91,6 +91,11 @@ out
 .nuxt
 dist
 
+# Keep built userscripts for raw.githubusercontent.com auto-update
+!packages/*/dist/
+!packages/*/dist/*.user.js
+!packages/*/dist/*.meta.js
+
 # Gatsby files
 .cache/
 # Comment in the public line in if your project uses Gatsby and not Next.js

@@ -1,0 +1,10 @@
+{
+  "name": "userscripts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev:lichess": "pnpm --filter @userscripts/lichess-stats dev"
+  },
+  "packageManager": "pnpm@10.12.1"
+}
