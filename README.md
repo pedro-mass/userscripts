@@ -2,14 +2,15 @@
 
 Personal browser userscripts (Tampermonkey / Violentmonkey), built as a pnpm monorepo.
 
-**Actively maintained:** [LiveChart.me minimum rating filter](packages/live-chart-filter/) only. Other packages are archived in-repo and no longer supported.
+**Actively maintained:** [LiveChart.me minimum rating filter](packages/live-chart-filter/) and [Chess.com → Lichess export](packages/chesscom-lichess-export/). Other packages are archived in-repo and no longer supported.
 
 ## Layout
 
 ```
 packages/
-  live-chart-filter/   # maintained
-  shared/              # shared DOM helpers
+  live-chart-filter/          # maintained
+  chesscom-lichess-export/    # maintained
+  shared/                     # shared DOM helpers
   lichess-stats/       # archived (unsupported)
   udemy-section-time/  # archived (unsupported)
   lattice-goal-ideal/  # archived (unsupported)
@@ -28,11 +29,12 @@ Install: open `packages/live-chart-filter/dist/live-chart-filter.user.js` in Tam
 
 **Publishing:** [docs/publishing.md](docs/publishing.md)
 
-## Maintained package
+## Maintained packages
 
 | Package | Site | Greasy Fork | Output |
 | --- | --- | --- | --- |
 | `live-chart-filter` | livechart.me | [547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) | `dist/live-chart-filter.user.js` |
+| `chesscom-lichess-export` | chess.com | (install from `dist/` or raw GitHub) | `dist/chesscom-lichess-export.user.js` |
 
 ## Archived (unsupported)
 

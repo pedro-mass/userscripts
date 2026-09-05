@@ -5,7 +5,9 @@
   "scripts": {
     "build": "pnpm --filter @userscripts/live-chart-filter build",
     "build:all": "pnpm -r build",
-    "dev": "pnpm --filter @userscripts/live-chart-filter dev"
+    "build:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export build",
+    "dev": "pnpm --filter @userscripts/live-chart-filter dev",
+    "dev:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export dev"
   },
   "packageManager": "pnpm@10.12.1"
 }
