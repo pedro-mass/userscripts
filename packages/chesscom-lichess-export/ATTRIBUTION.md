@@ -15,7 +15,7 @@ Ported concepts: share-dialog PGN extraction, Lichess `/api/import`, GM storage 
 - `data-cy` anchor selectors and win-modal text fallback
 - Share modal export button
 - `/analysis/game/*` URL support and callback API fallback
-- Distinct UI (Lichess green accent, ♞ icon — not upstream orange/logo)
+- Distinct UI (Lichess brag orange accent, bundled logo; not upstream orange hex)
 - Monorepo packaging and raw GitHub auto-update URLs
 
 Full license text: [LICENSE](./LICENSE).

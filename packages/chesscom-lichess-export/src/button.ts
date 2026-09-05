@@ -108,7 +108,7 @@ function injectStyles(): void {
       margin-top: 8px;
       border: none;
       border-radius: ${LICHESS_THEME.radius};
-      background: ${LICHESS_THEME.green};
+      background: ${LICHESS_THEME.brag};
       color: ${LICHESS_THEME.textOnBrand};
       font-size: 22px;
       font-weight: 500;
@@ -136,7 +136,7 @@ function injectStyles(): void {
       height: 20px;
     }
     .cc2l-btn:hover:not(:disabled) {
-      background: ${LICHESS_THEME.greenHover};
+      background: ${LICHESS_THEME.bragHover};
     }
     .cc2l-btn:disabled { opacity: 0.65; cursor: not-allowed; }
     .cc2l-share-btn {
@@ -149,7 +149,7 @@ function injectStyles(): void {
       padding: 12px 16px;
       border: none;
       border-radius: ${LICHESS_THEME.radius};
-      background: ${LICHESS_THEME.green};
+      background: ${LICHESS_THEME.brag};
       color: ${LICHESS_THEME.textOnBrand};
       font-size: 16px;
       font-weight: 500;
@@ -159,7 +159,7 @@ function injectStyles(): void {
       transition: background 0.15s;
     }
     .cc2l-share-btn:hover:not(:disabled) {
-      background: ${LICHESS_THEME.greenHover};
+      background: ${LICHESS_THEME.bragHover};
     }
     .cc2l-share-btn:disabled { opacity: 0.65; cursor: not-allowed; }
   `;
