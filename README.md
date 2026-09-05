@@ -24,14 +24,16 @@ pnpm dev:lichess            # HMR dev server (any package: dev:<name>)
 
 Install a built script: open `packages/<name>/dist/<name>.user.js` in the browser (or use Tampermonkey's install-from-file).
 
+**Publishing:** see [docs/publishing.md](docs/publishing.md). Greasy Fork profile: [pedro-mass](https://greasyfork.org/en/users/111366-pedro-mass).
+
 ## Packages
 
-| Package | Site | Output |
-| --- | --- | --- |
-| `lichess-stats` | lichess.org/training | `dist/lichess-stats.user.js` |
-| `live-chart-filter` | livechart.me | `dist/live-chart-filter.user.js` |
-| `udemy-section-time` | udemy.com | `dist/udemy-section-time.user.js` |
-| `lattice-goal-ideal` | latticehq.com/goals | `dist/lattice-goal-ideal.user.js` |
+| Package | Site | Greasy Fork | Output |
+| --- | --- | --- | --- |
+| `lichess-stats` | lichess.org/training | [522313](https://greasyfork.org/en/scripts/522313-lichess-training-stats-for-current-run) | `dist/lichess-stats.user.js` |
+| `live-chart-filter` | livechart.me | [547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) | `dist/live-chart-filter.user.js` |
+| `udemy-section-time` | udemy.com | [28295](https://greasyfork.org/en/scripts/28295-udemy-show-section-time) | `dist/udemy-section-time.user.js` |
+| `lattice-goal-ideal` | latticehq.com/goals | [profile](https://greasyfork.org/en/users/111366-pedro-mass) | `dist/lattice-goal-ideal.user.js` |
 
 ## Add a new userscript
 
