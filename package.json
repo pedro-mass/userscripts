@@ -10,7 +10,8 @@
     "dev:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export dev",
     "greasyfork:login": "node scripts/greasyfork/publish.mjs login",
     "greasyfork:publish": "node scripts/greasyfork/publish.mjs publish",
-    "greasyfork:sync": "node scripts/greasyfork/publish.mjs sync"
+    "greasyfork:sync": "node scripts/greasyfork/publish.mjs sync",
+    "capture:store:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export capture:store"
   },
   "packageManager": "pnpm@10.12.1",
   "devDependencies": {

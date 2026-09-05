@@ -41,6 +41,8 @@ Sync URL is always:
 
 Flags: `--build` (run package build first), `--headed` (show browser), `--write-script-id` (patch `greasyfork.json` after first publish).
 
+**Listing images:** per-package `store/` folder. Regenerate mocks: `pnpm capture:store:chesscom`. Images are linked from `greasyfork.additional-info.md` (synced with code on `pnpm greasyfork:sync`). See [chesscom store README](../packages/chesscom-lichess-export/store/README.md).
+
 ## Strategy
 
 | Layer | Role |

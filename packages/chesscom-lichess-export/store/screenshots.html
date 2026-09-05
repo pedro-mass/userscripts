@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chess.com → Lichess — store screenshots</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #111;
+    }
+    .scene {
+      width: 1280px;
+      height: 800px;
+      overflow: hidden;
+      position: fixed;
+      top: 0;
+      left: 0;
+      background: #161512;
+      color: #e8e6e3;
+    }
+    #promo-440 {
+      width: 440px;
+      height: 280px;
+    }
+
+    /* Shared button styles (match shipped userscript) */
+    .cc2l-btn, .cc2l-share-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 1px solid hsl(0 0% 25%);
+      border-radius: 3px;
+      background: linear-gradient(to bottom, hsl(37 7% 22%), hsl(37 5% 19%));
+      color: hsl(37 100% 70%);
+      font-weight: 500;
+      box-shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.2);
+      font-family: inherit;
+      cursor: default;
+    }
+    .cc2l-btn svg, .cc2l-share-btn svg { width: 24px; height: 24px; flex-shrink: 0; }
+    .cc2l-share-btn svg { width: 20px; height: 20px; }
+
+    .cc-btn-green {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 6px;
+      background: #5fa535;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .cc-btn-gray {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 12px 20px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #3d3a37;
+      color: #e8e6e3;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    /* Board */
+    .layout {
+      display: flex;
+      height: 100%;
+    }
+    .board-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      background: linear-gradient(145deg, #1a1816 0%, #12110f 100%);
+    }
+    .board {
+      width: 480px;
+      height: 480px;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgb(0 0 0 / 0.45);
+    }
+    .sq { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 42px; }
+    .sq.light { background: #eeeed2; }
+    .sq.dark { background: #769656; }
+    .sq .p { filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.35)); }
+
+    .sidebar {
+      width: 340px;
+      background: #262421;
+      border-left: 1px solid #3d3a37;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .sidebar h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #9a9893;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+    .move-list {
+      flex: 1;
+      background: #1f1d1b;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #c5c3be;
+    }
+    .cc2l-btn {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 18px;
+      margin-top: 4px;
+    }
+
+    /* Game over modal scene */
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgb(0 0 0 / 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal {
+      width: 420px;
+      background: #262421;
+      border-radius: 8px;
+      padding: 28px 24px 24px;
+      text-align: center;
+      box-shadow: 0 16px 48px rgb(0 0 0 / 0.5);
+    }
+    .modal .trophy { font-size: 48px; margin-bottom: 8px; }
+    .modal h2 { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+    .modal p { color: #9a9893; margin-bottom: 20px; font-size: 15px; }
+    .modal .cc2l-btn {
+      width: auto;
+      display: inline-flex;
+      padding: 14px 28px;
+      font-size: 18px;
+      margin: 8px 0;
+    }
+    .modal .cc-btn-green { margin-top: 4px; }
+
+    /* Share modal */
+    .share-modal {
+      width: 480px;
+      background: #f2f2f2;
+      color: #312e2b;
+      border-radius: 8px;
+      padding: 0;
+      overflow: hidden;
+      box-shadow: 0 16px 48px rgb(0 0 0 / 0.45);
+    }
+    .share-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+      font-weight: 700;
+      font-size: 18px;
+    }
+    .share-tabs {
+      display: flex;
+      gap: 0;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+    }
+    .share-tabs span {
+      padding: 12px 20px;
+      font-size: 14px;
+      color: #666;
+    }
+    .share-tabs span.active {
+      color: #312e2b;
+      font-weight: 600;
+      border-bottom: 2px solid #5fa535;
+    }
+    .share-body { padding: 20px; background: #fafafa; }
+    .pgn-box {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 12px;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      color: #444;
+      height: 120px;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .cc2l-share-btn {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 16px;
+    }
+    .cc-btn-dl {
+      width: 100%;
+      margin-top: 10px;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      background: #5fa535;
+      color: #fff;
+      font-weight: 600;
+      font-size: 15px;
+      opacity: 0.85;
+    }
+
+    /* Promo hero */
+    .promo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      padding: 32px;
+      background: linear-gradient(135deg, #1a1816 0%, #262421 50%, #1a1816 100%);
+    }
+    .promo h1 {
+      font-size: 42px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: hsl(37 100% 70%);
+    }
+    .promo p {
+      font-size: 20px;
+      color: #c5c3be;
+      max-width: 720px;
+      line-height: 1.45;
+      margin-bottom: 28px;
+    }
+    .promo .cc2l-btn {
+      width: auto;
+      padding: 16px 32px;
+      font-size: 20px;
+    }
+    .promo-small h1 { font-size: 22px; margin-bottom: 8px; }
+    .promo-small p { font-size: 13px; margin-bottom: 14px; }
+    .promo-small .cc2l-btn { padding: 10px 18px; font-size: 14px; }
+    .promo-small .cc2l-btn svg { width: 18px; height: 18px; }
+
+    .caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 10px 16px;
+      background: linear-gradient(transparent, rgb(0 0 0 / 0.75));
+      font-size: 13px;
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+  <!-- Scene 1: Game Review sidebar -->
+  <section class="scene" id="game-review-sidebar" data-export="game-review-sidebar">
+    <div class="layout">
+      <div class="board-area">
+        <div class="board" id="board-main"></div>
+      </div>
+      <aside class="sidebar">
+        <h3>Game Review</h3>
+        <div class="move-list">1. e4 e5  2. Nf3 Nc6  3. Bb5 a6  4. Ba4 Nf6  5. O-O Be7 …</div>
+        <button type="button" class="cc-btn-green">★ Game Review</button>
+        <button type="button" class="cc2l-btn" id="btn-main"></button>
+        <button type="button" class="cc-btn-gray">New Game</button>
+      </aside>
+    </div>
+    <div class="caption">Analyse on Lichess in the Game Review sidebar after a finished game</div>
+  </section>
+
+  <!-- Scene 2: Game over modal -->
+  <section class="scene" id="game-over-modal" data-export="game-over-modal">
+    <div class="board-area" style="height:100%">
+      <div class="board" id="board-modal" style="opacity:0.35;filter:blur(1px)"></div>
+    </div>
+    <div class="modal-backdrop">
+      <div class="modal">
+        <div class="trophy">🏆</div>
+        <h2>You Won!</h2>
+        <p>by resignation · Rapid 10+0</p>
+        <button type="button" class="cc-btn-green">★ Game Review</button>
+        <button type="button" class="cc2l-btn" id="btn-modal"></button>
+        <button type="button" class="cc-btn-gray">Rematch</button>
+      </div>
+    </div>
+    <div class="caption">Same button on the game-over modal</div>
+  </section>
+
+  <!-- Scene 3: Share dialog -->
+  <section class="scene" id="share-modal" data-export="share-modal">
+    <div class="modal-backdrop">
+      <div class="share-modal">
+        <div class="share-head">Share <span style="font-weight:400;color:#888">×</span></div>
+        <div class="share-tabs">
+          <span>Game Url</span>
+          <span class="active">PGN</span>
+          <span>FEN</span>
+        </div>
+        <div class="share-body">
+          <div class="pgn-box">[Event "Live Chess"]<br>[Site "Chess.com"]<br>[Date "2026.03.21"]<br>[White "pedro-mass"]<br>[Black "opponent"]<br>1. e4 e5 2. Nf3 Nc6 … 1-0</div>
+          <button type="button" class="cc2l-share-btn" id="btn-share"></button>
+          <button type="button" class="cc-btn-dl">↓ Download</button>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Export to Lichess in the Share dialog (PGN tab)</div>
+  </section>
+
+  <!-- Scene 4: Promo 1280x800 -->
+  <section class="scene" id="promo-1280" data-export="promo-1280x800">
+    <div class="promo">
+      <h1>Chess.com → Lichess</h1>
+      <p>One-click PGN export. Opens your game on Lichess for analysis — no copy-paste.</p>
+      <button type="button" class="cc2l-btn" id="btn-promo"></button>
+    </div>
+  </section>
+
+  <!-- Scene 5: Chrome Web Store small promo -->
+  <section class="scene promo-small" id="promo-440" data-export="promo-440x280">
+    <div class="promo">
+      <h1>Chess.com → Lichess</h1>
+      <p>Export games to Lichess in one click</p>
+      <button type="button" class="cc2l-btn" id="btn-promo-small"></button>
+    </div>
+  </section>
+
+  <script>
+    const LOGO = `<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="m37.656 74.009c-4.8354-0.36436-9.6886-1.699-13.955-3.8378-3.4383-1.7236-6.4517-3.92-9.0933-6.628-7.0896-7.2676-10.055-17.334-8.1548-27.684 1.5646-8.5227 6.1202-15.614 12.927-20.122 6.4164-4.2497 14.836-6.2637 24.632-5.8922l2.1764 0.082493 0.71448-0.46162c2.8371-1.8331 5.781-2.7675 10.74-3.409 1.3469-0.17424 1.5334-0.18309 1.7288-0.082031 0.24019 0.1242 0.31608 0.26074 0.31608 0.56864 0 0.11136-0.4595 2.1736-1.0211 4.5828-1.0078 4.3233-1.0194 4.3838-0.89332 4.6483 0.07031 0.14737 0.50749 0.95627 0.97159 1.7975 0.4641 0.84128 0.96793 1.7581 1.1196 2.0374 0.15171 0.2793 1.5664 2.8457 3.1439 5.7031 1.5774 2.8574 3.8363 6.9531 5.0198 9.1016 3.237 5.8763 4.9952 9.0631 5.4255 9.8339 0.50792 0.90969 0.63287 1.4871 0.62769 2.9005-0.0037 0.91614-0.03691 1.2203-0.20664 1.8732-0.86524 3.328-3.915 6.1562-8.8068 8.167-1.1079 0.45544-2.3332 0.85827-2.6106 0.85827-0.25397 0-0.38898-0.15415-1.129-1.2891-1.3352-2.0478-3.9112-4.9986-6.541-7.4929-1.5045-1.427-2.0154-1.8499-5.6466-4.6744-4.6142-3.5891-6.2759-5.0009-8.48-7.2045-3.9949-3.9941-5.887-7.2765-6.1716-10.706-0.08995-1.0838 0.18839-2.7981 0.50585-3.1155 0.41619-0.41619 1.1662-0.01476 1.064 0.56953-0.02694 0.15422-0.06902 0.65348-0.09347 1.1095-0.03663 0.68284-0.01606 0.94126 0.11629 1.4648 0.63768 2.5217 3.041 5.405 7.3949 8.8718 2.0126 1.6025 3.381 2.5855 7.6172 5.4717 5.194 3.5387 5.6984 3.9377 8.1641 6.4574 2.308 2.3586 3.494 3.8269 4.3474 5.3817 0.22404 0.4082 0.4147 0.75294 0.42366 0.7661 0.03949 0.05785 1.0174-0.24498 1.6091-0.49822 2.5156-1.0767 4.1441-3.2328 4.6375-6.1402l0.12817-0.75512-2.3219-3.8933c-1.2771-2.1413-2.9627-4.9656-3.7459-6.2761-2.1258-3.5573-10.258-17.183-10.81-18.114-0.26416-0.44496-0.4989-0.88442-0.52166-0.97656-0.0251-0.10167 0.35524-1.304 0.96742-3.0582 1.1589-3.3208 1.1586-3.0658 0.0028-2.7713-1.7885 0.45585-3.5267 1.2861-7.057 3.3706-0.71397 0.4216-1.2524 0.68973-1.385 0.68973-0.11934 0-0.6484-0.06957-1.1757-0.15451-2.4739-0.39872-5.0621-0.55615-7.5603-0.45987-5.5228 0.21286-10.604 1.8776-14.844 4.8634-4.762 3.3535-8.8329 8.8527-10.751 14.524-2.991 8.8413-0.68144 19.066 6.03 26.696 4.991 5.6739 11.828 9.2927 19.487 10.315 1.578 0.21053 4.5386 0.28823 6.1195 0.16059 7.0509-0.56924 13.253-3.3262 18.267-8.1207 0.79159-0.75686 0.94438-0.87009 1.174-0.87009 0.61003 0 0.83436 0.48111 0.49462 1.0608-0.76303 1.302-2.9045 3.6393-4.5382 4.9532-4.0237 3.236-9.0858 5.1841-14.924 5.7434-1.1092 0.10625-4.5728 0.1453-5.655 0.06376z"/></svg>`;
+
+    const pieces = [
+      ['♜','♞','♝','♛','♚','♝','♞','♜'],
+      ['♟','♟','♟','♟','♟','♟','♟','♟'],
+      ['','','','','','','',''],
+      ['','','','','','','',''],
+      ['','','','','','','',''],
+      ['','','','','','','',''],
+      ['♙','♙','♙','♙','♙','♙','♙','♙'],
+      ['♖','♘','♗','♕','♔','♗','♘','♖'],
+    ];
+
+    function fillBoard(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const sq = document.createElement('div');
+          sq.className = 'sq ' + ((r + c) % 2 ? 'dark' : 'light');
+          const p = pieces[r][c];
+          if (p) sq.innerHTML = `<span class="p">${p}</span>`;
+          el.appendChild(sq);
+        }
+      }
+    }
+
+    fillBoard('board-main');
+    fillBoard('board-modal');
+
+    document.getElementById('btn-main').innerHTML = LOGO + ' Analyse on Lichess';
+    document.getElementById('btn-modal').innerHTML = LOGO + ' Analyse on Lichess';
+    document.getElementById('btn-share').innerHTML = LOGO + ' Export to Lichess';
+    document.getElementById('btn-promo').innerHTML = LOGO + ' Analyse on Lichess';
+    document.getElementById('btn-promo-small').innerHTML = LOGO + ' Analyse on Lichess';
+  </script>
+</body>
+</html>

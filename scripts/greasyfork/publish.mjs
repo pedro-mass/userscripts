@@ -85,6 +85,11 @@ function syncUrl(packageName, distFile) {
   return `${GH_RAW}/${packageName}/dist/${distFile}`;
 }
 
+function additionalInfoSyncUrl(packageName, config) {
+  if (!config.additionalInfo) return null;
+  return `${GH_RAW}/${packageName}/${config.additionalInfo}`;
+}
+
 function runBuild(packageName) {
   const pkgJson = JSON.parse(
     readFileSync(join(ROOT, 'packages', packageName, 'package.json'), 'utf8'),
@@ -141,10 +146,18 @@ async function cmdLogin() {
   await browser.close();
 }
 
-async function configureSync(page, scriptId, url) {
+async function configureSync(page, scriptId, codeUrl, infoUrl) {
   await page.goto(`${GF}/scripts/${scriptId}/admin`);
-  await page.fill('#script_sync_identifier', url);
+  await page.fill('#script_sync_identifier', codeUrl);
   await page.check('#script_sync_type_automatic');
+  if (infoUrl) {
+    const infoField = page.locator('input[name="additional_info_sync[0][sync_identifier]"]');
+    if (await infoField.count()) {
+      await infoField.fill(infoUrl);
+      const md = page.locator('#additional_info_sync_0_value_markup_markdown');
+      if (await md.count()) await md.check();
+    }
+  }
   await page.click('input[name="update-and-sync"]');
   await page.waitForURL((u) => u.pathname.includes(`/scripts/${scriptId}`), {
     timeout: 60_000,
@@ -165,6 +178,7 @@ async function cmdPublish(packageName, flags) {
   const header = parseUserscriptHeader(code);
   const additionalInfo = readAdditionalInfo(pkgDir, config);
   const url = syncUrl(packageName, config.distFile);
+  const infoUrl = additionalInfoSyncUrl(packageName, config);
 
   if (!header.name || !header.description) {
     die('Could not parse @name / @description from dist userscript header.');
@@ -194,7 +208,7 @@ async function cmdPublish(packageName, flags) {
   if (!scriptId) die(`Could not parse script ID from ${page.url()}`);
 
   console.log(`Posted listing: ${page.url()}`);
-  await configureSync(page, scriptId, url);
+  await configureSync(page, scriptId, url, infoUrl);
 
   const listingUrl = `${GF}/scripts/${scriptId}`;
   console.log(`Synced from GitHub. Listing: ${listingUrl}`);
@@ -224,12 +238,13 @@ async function cmdSync(packageName, flags) {
   }
 
   const url = syncUrl(packageName, config.distFile);
+  const infoUrl = additionalInfoSyncUrl(packageName, config);
   console.log(`Syncing script ${config.scriptId} from ${url}...`);
 
   const { browser, context } = await browserContext(flags.headed);
   const page = await context.newPage();
   await assertSignedIn(page);
-  await configureSync(page, config.scriptId, url);
+  await configureSync(page, config.scriptId, url, infoUrl);
   console.log(`Done: ${GF}/scripts/${config.scriptId}`);
   await browser.close();
 }

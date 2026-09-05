@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "capture:store": "node scripts/capture-store-images.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.2",

@@ -6,6 +6,8 @@ One-click PGN export from Chess.com to Lichess (game-over modal, Game Review sid
 
 **Greasy Fork:** [594491 - Chess.com → Lichess Export](https://greasyfork.org/en/scripts/594491-chess-com-lichess-export) (recommended)
 
+Store images: [`store/`](./store/) · regenerate with `pnpm capture:store`
+
 Dev: build `dist/chesscom-lichess-export.user.js` and install in Tampermonkey / Violentmonkey.
 
 ```bash
