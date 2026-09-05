@@ -32,7 +32,7 @@ If the listing still points at a repo-root `.user.js` file:
 | | |
 | --- | --- |
 | **Package** | `packages/chesscom-lichess-export/` |
-| **Greasy Fork** | *(create listing — [publish guide](./greasyfork-chesscom-lichess-export.md))* |
+| **Listing** | [594491 - Chess.com → Lichess Export](https://greasyfork.org/en/scripts/594491-chess-com-lichess-export) |
 | **Sync URL** | `https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesscom-lichess-export/dist/chesscom-lichess-export.user.js` |
 | **Auto-update** | GF install, or `@updateURL` on raw GitHub installs |
 

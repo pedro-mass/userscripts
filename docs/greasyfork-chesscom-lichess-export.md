@@ -43,10 +43,11 @@ GPL-3.0-only. Incorporates logic adapted from [chesscom-to-lichess-export](https
 
 ## After publish
 
-1. Copy the public script URL (e.g. `https://greasyfork.org/en/scripts/NNNNNN-...`).
-2. Update [README.md](../README.md) and [publishing.md](./publishing.md) with the script ID.
-3. **Install:** open the listing → green **Install** button (Tampermonkey).
-4. Disable/remove the local-file or InvictusNavarchus install so only one chess.com → Lichess script runs.
+**Listing:** [594491 - Chess.com → Lichess Export](https://greasyfork.org/en/scripts/594491-chess-com-lichess-export)
+
+1. **Install:** open the listing → green **Install** button (Tampermonkey).
+2. Disable/remove the local-file or InvictusNavarchus install so only one chess.com → Lichess script runs.
+3. Admin → **Source Syncing** → automatic sync from the raw URL above (done).
 
 ## Optional: GitHub webhook (instant sync on push)
 

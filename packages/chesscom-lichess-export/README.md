@@ -4,7 +4,9 @@ One-click PGN export from Chess.com to Lichess (game-over modal, Game Review sid
 
 ## Install
 
-Build `dist/chesscom-lichess-export.user.js` and install in Tampermonkey / Violentmonkey.
+**Greasy Fork:** [594491 - Chess.com → Lichess Export](https://greasyfork.org/en/scripts/594491-chess-com-lichess-export) (recommended)
+
+Dev: build `dist/chesscom-lichess-export.user.js` and install in Tampermonkey / Violentmonkey.
 
 ```bash
 pnpm --filter @userscripts/chesscom-lichess-export build
