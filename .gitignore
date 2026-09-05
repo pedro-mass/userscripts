@@ -133,3 +133,6 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Greasy Fork publish auth (playwright storage state)
+.greasyfork/

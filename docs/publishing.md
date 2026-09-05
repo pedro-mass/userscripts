@@ -2,6 +2,45 @@
 
 **Active scripts:** [live-chart-filter](../packages/live-chart-filter/) (LiveChart.me) and [chesscom-lichess-export](../packages/chesscom-lichess-export/) (Chess.com → Lichess).
 
+## Greasy Fork CLI (repeatable)
+
+Script: [`scripts/greasyfork/publish.mjs`](../scripts/greasyfork/publish.mjs) (Playwright + saved session).
+
+**One-time setup**
+
+```bash
+pnpm install
+pnpm exec playwright install chromium
+pnpm greasyfork:login    # sign in once; saves .greasyfork/storage-state.json (gitignored)
+```
+
+**Per package** — add `packages/<name>/greasyfork.json`:
+
+```json
+{
+  "scriptId": 594491,
+  "distFile": "chesscom-lichess-export.user.js",
+  "additionalInfo": "greasyfork.additional-info.md"
+}
+```
+
+- `scriptId` — set after first publish (or use `--write-script-id`).
+- `distFile` — basename under `dist/`.
+- `additionalInfo` — optional markdown for the GF listing page.
+
+**Commands**
+
+| Command | When |
+| --- | --- |
+| `pnpm greasyfork:publish <pkg> --build --write-script-id` | First GF listing (posts code, sets GitHub sync URL) |
+| `pnpm greasyfork:sync <pkg>` | Pull latest `dist/` from `main` into an existing listing |
+
+Sync URL is always:
+
+`https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/<pkg>/dist/<distFile>`
+
+Flags: `--build` (run package build first), `--headed` (show browser), `--write-script-id` (patch `greasyfork.json` after first publish).
+
 ## Strategy
 
 | Layer | Role |
@@ -41,10 +80,8 @@ If the listing still points at a repo-root `.user.js` file:
 1. Edit `packages/chesscom-lichess-export/src/`.
 2. Bump `version` in `vite.config.ts` and `package.json`.
 3. `pnpm build:chesscom`, commit `dist/`, push to `main`.
-4. Greasy Fork: **Sync now** on the listing (or wait for webhook / daily poll).
+4. `pnpm greasyfork:sync chesscom-lichess-export` (or webhook / daily poll).
 5. Tampermonkey updates from Greasy Fork on the next check.
-
-Step-by-step first publish: [greasyfork-chesscom-lichess-export.md](./greasyfork-chesscom-lichess-export.md).
 
 ## Release workflow (live-chart-filter)
 
@@ -59,7 +96,7 @@ Step-by-step first publish: [greasyfork-chesscom-lichess-export.md](./greasyfork
     git push
     ```
 
-4. Greasy Fork updates via webhook or daily poll (see below).
+4. `pnpm greasyfork:sync live-chart-filter` after push (or webhook / daily poll).
 5. Installs from Greasy Fork update through GF; raw GitHub installs use `@updateURL` in the built header.
 
 ## Greasy Fork rules

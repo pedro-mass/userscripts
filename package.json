@@ -7,7 +7,13 @@
     "build:all": "pnpm -r build",
     "build:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export build",
     "dev": "pnpm --filter @userscripts/live-chart-filter dev",
-    "dev:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export dev"
+    "dev:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export dev",
+    "greasyfork:login": "node scripts/greasyfork/publish.mjs login",
+    "greasyfork:publish": "node scripts/greasyfork/publish.mjs publish",
+    "greasyfork:sync": "node scripts/greasyfork/publish.mjs sync"
   },
-  "packageManager": "pnpm@10.12.1"
+  "packageManager": "pnpm@10.12.1",
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
 }

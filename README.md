@@ -32,7 +32,7 @@ pnpm build:chesscom     # chess.com → lichess
 
 Dev: `pnpm dev` (LiveChart) · `pnpm dev:chesscom`
 
-**Publishing:** [docs/publishing.md](docs/publishing.md)
+**Publishing:** [docs/publishing.md](docs/publishing.md) · `pnpm greasyfork:sync <package>` after pushing `dist/`
 
 ## Maintained packages
 
@@ -57,8 +57,8 @@ Rebuild all packages (including archived): `pnpm build:all`
 
 1. Copy `packages/live-chart-filter/` as a template.
 2. Update `vite.config.ts` metadata (`match`, `name`, `version`, update URLs).
-3. Add `"@userscripts/shared": "workspace:*"` if you need shared helpers.
-4. Document in `docs/publishing.md` and this README.
+3. Add `greasyfork.json` (and optional `greasyfork.additional-info.md`). See [docs/publishing.md](docs/publishing.md).
+4. Document in this README.
 
 ## Extension path
 
