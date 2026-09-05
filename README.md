@@ -17,15 +17,20 @@ packages/
 legacy/                # pre-monorepo flat sources
 ```
 
-## Quick start (LiveChart)
+## Quick start
 
 ```bash
 pnpm install
-pnpm build              # packages/live-chart-filter only
-pnpm dev                # HMR dev server
+pnpm build              # live-chart-filter
+pnpm build:chesscom     # chess.com → lichess
 ```
 
-Install: open `packages/live-chart-filter/dist/live-chart-filter.user.js` in Tampermonkey, or use the [Greasy Fork listing](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent).
+| Package | Install |
+| --- | --- |
+| LiveChart filter | [Greasy Fork 547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) or `packages/live-chart-filter/dist/live-chart-filter.user.js` |
+| Chess.com → Lichess | [raw GitHub](https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesscom-lichess-export/dist/chesscom-lichess-export.user.js) or `packages/chesscom-lichess-export/dist/chesscom-lichess-export.user.js` |
+
+Dev: `pnpm dev` (LiveChart) · `pnpm dev:chesscom`
 
 **Publishing:** [docs/publishing.md](docs/publishing.md)
 
@@ -34,7 +39,7 @@ Install: open `packages/live-chart-filter/dist/live-chart-filter.user.js` in Tam
 | Package | Site | Greasy Fork | Output |
 | --- | --- | --- | --- |
 | `live-chart-filter` | livechart.me | [547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) | `dist/live-chart-filter.user.js` |
-| `chesscom-lichess-export` | chess.com | (install from `dist/` or raw GitHub) | `dist/chesscom-lichess-export.user.js` |
+| `chesscom-lichess-export` | chess.com | [raw install](https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesscom-lichess-export/dist/chesscom-lichess-export.user.js) | `dist/chesscom-lichess-export.user.js` |
 
 ## Archived (unsupported)
 

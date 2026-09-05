@@ -1,6 +1,6 @@
 # Publishing userscripts
 
-**Active script:** [live-chart-filter](../packages/live-chart-filter/) (LiveChart.me) only. Other packages in this repo are archived and unsupported.
+**Active scripts:** [live-chart-filter](../packages/live-chart-filter/) (LiveChart.me) and [chesscom-lichess-export](../packages/chesscom-lichess-export/) (Chess.com → Lichess).
 
 ## Strategy
 
@@ -26,6 +26,23 @@ If the listing still points at a repo-root `.user.js` file:
 2. Open [script 547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) → **Manage**.
 3. Set sync URL to the **raw** link above (not a `github.com/.../blob/...` URL).
 4. **Sync now** → confirm **Code** tab shows v1.8+ from `packages/live-chart-filter/`.
+
+## Chess.com → Lichess (chesscom-lichess-export)
+
+| | |
+| --- | --- |
+| **Package** | `packages/chesscom-lichess-export/` |
+| **Raw install** | `https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesscom-lichess-export/dist/chesscom-lichess-export.user.js` |
+| **Auto-update** | `@updateURL` / `@downloadURL` in built header (Tampermonkey) |
+
+### Release workflow
+
+1. Edit `packages/chesscom-lichess-export/src/`.
+2. Bump `version` in `vite.config.ts` and `package.json`.
+3. `pnpm build:chesscom`, commit `dist/`, push to `main`.
+4. Reinstall or wait for Tampermonkey update check on raw URL installs.
+
+Greasy Fork listing optional later; raw GitHub is enough for personal ship.
 
 ## Release workflow (live-chart-filter)
 
@@ -89,6 +106,7 @@ Greasy Fork does not require you to delete listings; updating the description to
 | --- | --- |
 | Greasy Fork → Install | Primary discovery |
 | Raw `dist/live-chart-filter.user.js` | Dev / `@downloadURL` |
+| Raw `dist/chesscom-lichess-export.user.js` | Chess.com → Lichess dev / `@downloadURL` |
 | userscript.zone | Search only; links to GF |
 
 ## Related
