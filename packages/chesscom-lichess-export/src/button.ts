@@ -1,3 +1,4 @@
+import lichessLogoSvg from './assets/lichess-logo.svg?raw';
 import {
   BUTTON_ANCHOR_SELECTORS,
   SHARE_MODAL_SELECTORS,
@@ -7,19 +8,16 @@ import {
 const NS = `cc2l_${Math.random().toString(36).slice(2, 10)}`;
 const STYLE_ID = `${NS}_style`;
 
-/** Simple knight mark — not the upstream Lichess logo SVG. */
-const ICON = '<span class="cc2l-icon" aria-hidden="true">♞</span>';
-
 export type ButtonState = 'idle' | 'cached' | 'loading' | 'error';
 
 const BUTTON_CONTENT: Record<ButtonState, string> = {
-  idle: `${ICON} Analyse on Lichess`,
-  cached: `${ICON} Re-open on Lichess ✓`,
+  idle: `${lichessLogoSvg} Analyse on Lichess`,
+  cached: `${lichessLogoSvg} Re-open on Lichess ✓`,
   loading: '⏳ Importing…',
   error: '❌ Failed — retry?',
 };
 
-const SHARE_IDLE = `${ICON} Export to Lichess`;
+const SHARE_IDLE = `${lichessLogoSvg} Export to Lichess`;
 
 export function isMainButtonInjected(): boolean {
   return document.getElementById(NS) !== null;
@@ -124,9 +122,15 @@ function injectStyles(): void {
       max-width: 100%;
       margin: 8px 1.6rem;
     }
-    .cc2l-icon {
-      font-size: 1.25em;
-      line-height: 1;
+    .cc2l-btn svg,
+    .cc2l-share-btn svg {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+    .cc2l-share-btn svg {
+      width: 20px;
+      height: 20px;
     }
     .cc2l-btn:hover:not(:disabled) { background: #4a7a30; }
     .cc2l-btn:disabled { opacity: 0.65; cursor: not-allowed; }
@@ -147,7 +151,6 @@ function injectStyles(): void {
       cursor: pointer;
       transition: background 0.15s;
     }
-    .cc2l-share-btn .cc2l-icon { font-size: 1.1em; }
     .cc2l-share-btn:hover:not(:disabled) { background: #4a7a30; }
     .cc2l-share-btn:disabled { opacity: 0.65; cursor: not-allowed; }
   `;
