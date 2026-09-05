@@ -3,12 +3,23 @@ import {
   SHARE_MODAL_SELECTORS,
   WIN_MODAL_TEXT,
 } from './config';
-import { MAIN_LABELS, SHARE_LABELS, type ButtonState } from './ui/labels';
 
-const NS = `pam_lichess_${Math.random().toString(36).slice(2, 10)}`;
+const NS = `cc2l_${Math.random().toString(36).slice(2, 10)}`;
 const STYLE_ID = `${NS}_style`;
 
-export type { ButtonState };
+/** Simple knight mark — not the upstream Lichess logo SVG. */
+const ICON = '<span class="cc2l-icon" aria-hidden="true">♞</span>';
+
+export type ButtonState = 'idle' | 'cached' | 'loading' | 'error';
+
+const BUTTON_CONTENT: Record<ButtonState, string> = {
+  idle: `${ICON} Analyse on Lichess`,
+  cached: `${ICON} Re-open on Lichess ✓`,
+  loading: '⏳ Importing…',
+  error: '❌ Failed — retry?',
+};
+
+const SHARE_IDLE = `${ICON} Export to Lichess`;
 
 export function isMainButtonInjected(): boolean {
   return document.getElementById(NS) !== null;
@@ -22,7 +33,6 @@ function findButtonAnchor(): HTMLElement | null {
   return findWinModalAnchorByText();
 }
 
-/** Fallback when chess.com renames classes — walk from "You Won!" text. */
 function findWinModalAnchorByText(): HTMLElement | null {
   for (const phrase of WIN_MODAL_TEXT) {
     const heading = Array.from(document.querySelectorAll<HTMLElement>('*')).find(
@@ -59,8 +69,8 @@ export function injectMainButton(
   const btn = document.createElement('button');
   btn.id = NS;
   btn.type = 'button';
-  btn.className = 'pam-lichess-btn';
-  btn.textContent = MAIN_LABELS[initialState];
+  btn.className = 'cc2l-btn';
+  btn.innerHTML = BUTTON_CONTENT[initialState];
   btn.addEventListener('click', onClick);
 
   const secondaryActions = anchor.querySelector(
@@ -79,7 +89,7 @@ export function injectMainButton(
 export function setMainButtonState(state: ButtonState): void {
   const btn = document.getElementById(NS) as HTMLButtonElement | null;
   if (!btn) return;
-  btn.textContent = MAIN_LABELS[state];
+  btn.innerHTML = BUTTON_CONTENT[state];
   btn.disabled = state === 'loading';
 }
 
@@ -89,55 +99,57 @@ function injectStyles(): void {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
-    .pam-lichess-btn,
-    .pam-lichess-share-btn {
+    .cc2l-btn {
       display: flex;
       align-items: center;
       justify-content: center;
+      gap: 6px;
       width: 100%;
-      margin-top: 6px;
-      border-radius: 6px;
-      font-family: inherit;
+      padding: 2rem 4rem;
+      margin-top: 8px;
+      border: none;
+      border-radius: 0.5em;
+      background: #5a8f3a;
+      color: #ffffff;
+      font-size: 22px;
       font-weight: 600;
-      letter-spacing: 0.01em;
       cursor: pointer;
+      transition: background 0.15s;
       box-sizing: border-box;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
     }
-    .pam-lichess-btn {
-      padding: 11px 16px;
-      border: 1px solid #81b64c;
-      background: #2b2a28;
-      color: #f0ede8;
-      font-size: 15px;
-    }
-    [data-cy="game-over-modal-shell-buttons"] .pam-lichess-btn,
-    .game-over-modal-shell-buttons .pam-lichess-btn {
+    [data-cy="game-over-modal-shell-buttons"] .cc2l-btn,
+    .game-over-modal-shell-buttons .cc2l-btn {
       width: auto;
-      min-width: 12rem;
-      max-width: calc(100% - 3.2rem);
-      margin: 6px 1.6rem 0;
+      padding: 1.3rem 2rem;
+      max-width: 100%;
+      margin: 8px 1.6rem;
     }
-    .pam-lichess-btn:hover:not(:disabled) {
-      background: #363532;
-      border-color: #9bc964;
+    .cc2l-icon {
+      font-size: 1.25em;
+      line-height: 1;
     }
-    .pam-lichess-share-btn {
-      padding: 10px 14px;
-      border: 1px dashed #81b64c;
-      background: transparent;
-      color: #c5e1a5;
-      font-size: 14px;
+    .cc2l-btn:hover:not(:disabled) { background: #4a7a30; }
+    .cc2l-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+    .cc2l-share-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      margin-top: 12px;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 0.5em;
+      background: #5a8f3a;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
     }
-    .pam-lichess-share-btn:hover:not(:disabled) {
-      background: rgba(129, 182, 76, 0.12);
-      border-style: solid;
-    }
-    .pam-lichess-btn:disabled,
-    .pam-lichess-share-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+    .cc2l-share-btn .cc2l-icon { font-size: 1.1em; }
+    .cc2l-share-btn:hover:not(:disabled) { background: #4a7a30; }
+    .cc2l-share-btn:disabled { opacity: 0.65; cursor: not-allowed; }
   `;
   document.head.appendChild(style);
 }
@@ -153,8 +165,8 @@ export function injectShareModalButton(onClick: () => void): void {
   const btn = document.createElement('button');
   btn.id = SHARE_MODAL_SELECTORS.injectId;
   btn.type = 'button';
-  btn.className = 'pam-lichess-share-btn';
-  btn.textContent = SHARE_LABELS.idle;
+  btn.className = 'cc2l-share-btn';
+  btn.innerHTML = SHARE_IDLE;
   btn.addEventListener('click', onClick);
 
   injectStyles();
@@ -171,6 +183,6 @@ export function setShareModalButtonState(state: ButtonState): void {
     SHARE_MODAL_SELECTORS.injectId,
   ) as HTMLButtonElement | null;
   if (!btn) return;
-  btn.textContent = SHARE_LABELS[state];
+  btn.innerHTML = state === 'idle' ? SHARE_IDLE : BUTTON_CONTENT[state];
   btn.disabled = state === 'loading';
 }

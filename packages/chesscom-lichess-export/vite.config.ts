@@ -10,7 +10,7 @@ export default defineConfig({
       entry: 'src/main.ts',
       userscript: {
         name: 'Chess.com → Lichess Export',
-        version: '0.1.1',
+        version: '0.1.2',
         author: 'pedro-mass',
         description:
           'One-click PGN export from Chess.com to Lichess (game-over modal, sidebar, share dialog)',
