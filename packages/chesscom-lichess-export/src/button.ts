@@ -98,25 +98,33 @@ function injectStyles(): void {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
-    .cc2l-btn {
+    .cc2l-btn,
+    .cc2l-share-btn {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
       width: 100%;
-      padding: 2rem 4rem;
-      margin-top: 8px;
-      border: none;
+      border: 1px solid ${LICHESS_THEME.border};
       border-radius: ${LICHESS_THEME.radius};
-      background: ${LICHESS_THEME.brag};
-      color: ${LICHESS_THEME.textOnBrand};
-      font-size: 22px;
+      background: linear-gradient(
+        to bottom,
+        ${LICHESS_THEME.metalTop},
+        ${LICHESS_THEME.metalBottom}
+      );
+      color: ${LICHESS_THEME.bragText};
       font-weight: 500;
       text-shadow: ${LICHESS_THEME.textShadow};
       box-shadow: ${LICHESS_THEME.buttonShadow};
       cursor: pointer;
-      transition: background 0.15s, box-shadow 0.15s;
+      transition: filter 0.15s, box-shadow 0.15s;
       box-sizing: border-box;
+      font-family: inherit;
+    }
+    .cc2l-btn {
+      padding: 2rem 4rem;
+      margin-top: 8px;
+      font-size: 22px;
     }
     [data-cy="game-over-modal-shell-buttons"] .cc2l-btn,
     .game-over-modal-shell-buttons .cc2l-btn {
@@ -131,37 +139,24 @@ function injectStyles(): void {
       height: 24px;
       flex-shrink: 0;
     }
+    .cc2l-share-btn {
+      margin-top: 12px;
+      padding: 12px 16px;
+      font-size: 16px;
+    }
     .cc2l-share-btn svg {
       width: 20px;
       height: 20px;
     }
-    .cc2l-btn:hover:not(:disabled) {
-      background: ${LICHESS_THEME.bragHover};
-    }
-    .cc2l-btn:disabled { opacity: 0.65; cursor: not-allowed; }
-    .cc2l-share-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      width: 100%;
-      margin-top: 12px;
-      padding: 12px 16px;
-      border: none;
-      border-radius: ${LICHESS_THEME.radius};
-      background: ${LICHESS_THEME.brag};
-      color: ${LICHESS_THEME.textOnBrand};
-      font-size: 16px;
-      font-weight: 500;
-      text-shadow: ${LICHESS_THEME.textShadow};
-      box-shadow: ${LICHESS_THEME.buttonShadow};
-      cursor: pointer;
-      transition: background 0.15s;
-    }
+    .cc2l-btn:hover:not(:disabled),
     .cc2l-share-btn:hover:not(:disabled) {
-      background: ${LICHESS_THEME.bragHover};
+      filter: brightness(1.12);
     }
-    .cc2l-share-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+    .cc2l-btn:disabled,
+    .cc2l-share-btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
   `;
   document.head.appendChild(style);
 }

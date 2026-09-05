@@ -1,16 +1,14 @@
 /**
- * Lichess lila theme accents (lichess-org/lila ui/lib/css/theme).
- * Site chrome is light (warm white) or dark (near-black) + orange --c-brag accent.
+ * Lichess lila theme (lichess-org/lila ui/lib/css/theme).
+ * Button style 1f: metal gradient + brag text (header-style).
  */
 export const LICHESS_THEME = {
-  /** --c-brag: DONATE, active tabs, main orange accent (dark + light) */
   brag: 'hsl(37 74% 43%)',
-  bragHover: 'hsl(37 100% 70%)',
-  /** --c-accent: stronger orange for emphasis */
-  accent: 'hsl(22 100% 42%)',
-  accentHover: 'hsl(22 100% 48%)',
-  textOnBrand: '#ffffff',
-  buttonShadow: '0 2px 4px 0 hsl(0 0% 0% / 0.225)',
-  textShadow: '0.5px 0.5px 0 rgb(0 0 0 / 0.5)',
+  bragText: 'hsl(37 100% 70%)',
+  metalTop: 'hsl(37 7% 22%)',
+  metalBottom: 'hsl(37 5% 19%)',
+  border: 'hsl(0 0% 25%)',
+  textShadow: 'none',
+  buttonShadow: '0 1px 3px 0 hsl(0 0% 0% / 0.2)',
   radius: '3px',
 } as const;
