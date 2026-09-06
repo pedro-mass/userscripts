@@ -125,6 +125,7 @@ async function assertSignedIn(page) {
   await page.goto(`${GF}/users/111366-pedro-mass`);
   const signedIn = await page
     .getByRole('link', { name: 'Sign out' })
+    .first()
     .isVisible()
     .catch(() => false);
   if (!signedIn) {
@@ -142,7 +143,7 @@ async function cmdLogin() {
   console.log(
     `Sign in to Greasy Fork in the browser window (waiting up to ${waitMins} minutes)...`,
   );
-  await page.getByRole('link', { name: 'Sign out' }).waitFor({
+  await page.getByRole('link', { name: 'Sign out' }).first().waitFor({
     state: 'visible',
     timeout: LOGIN_TIMEOUT_MS,
   });
