@@ -57,7 +57,8 @@ if (import.meta.env.DEV) {
         if (!meta.stamp || meta.stamp === lastStamp) return;
 
         if (lastStamp) {
-          chrome.runtime.reload();
+          // Avoid invalidating open chess.com tabs mid-test; reload manually in dev.
+          console.info('[cc2l] Extension rebuilt — reload this extension, then refresh chess.com');
         }
 
         lastStamp = meta.stamp;

@@ -24,7 +24,7 @@
 // ==/UserScript==
 
 
-System.register("./__entry.js", ['./__monkey.entry-DtvhJzbY.js'], (function (exports, module) {
+System.register("./__entry.js", ['./__monkey.entry-DtAjEHTB.js'], (function (exports, module) {
 	'use strict';
 	return {
 		setters: [null],
@@ -36,7 +36,7 @@ System.register("./__entry.js", ['./__monkey.entry-DtvhJzbY.js'], (function (exp
 	};
 }));
 
-System.register("./__monkey.entry-DtvhJzbY.js", [], (function (exports, module) {
+System.register("./__monkey.entry-DtAjEHTB.js", [], (function (exports, module) {
   'use strict';
   return {
     execute: (function () {
@@ -177,7 +177,7 @@ System.register("./__monkey.entry-DtvhJzbY.js", [], (function (exports, module) 
       } else {
         setPlatform(userscriptPlatform);
         void __vitePreload(async () => {
-          const { startApp } = await module.import('./app-Ddqqj6QO-B6fvmhk_.js');
+          const { startApp } = await module.import('./app-CYkXdqXG-DISWhoNx.js');
           return { startApp };
         }, void 0 ).then(({ startApp }) => startApp());
       }
@@ -186,7 +186,7 @@ System.register("./__monkey.entry-DtvhJzbY.js", [], (function (exports, module) 
   };
 }));
 
-System.register("./app-Ddqqj6QO-B6fvmhk_.js", ['./__monkey.entry-DtvhJzbY.js'], (function (exports, module) {
+System.register("./app-CYkXdqXG-DISWhoNx.js", ['./__monkey.entry-DtAjEHTB.js'], (function (exports, module) {
   'use strict';
   var getPlatform;
   return {
@@ -195,7 +195,10 @@ System.register("./app-Ddqqj6QO-B6fvmhk_.js", ['./__monkey.entry-DtvhJzbY.js'], 
     }],
     execute: (function () {
 
-      exports("startApp", startApp);
+      exports({
+        cleanupApp: cleanupApp,
+        startApp: startApp
+      });
 
       function importPgn(pgn) {
         return getPlatform().http.postForm("https://lichess.org/api/import", `pgn=${encodeURIComponent(pgn)}`, {
@@ -591,6 +594,29 @@ System.register("./app-Ddqqj6QO-B6fvmhk_.js", ['./__monkey.entry-DtvhJzbY.js'], 
         btn.innerHTML = state === "idle" ? SHARE_IDLE : BUTTON_CONTENT[state];
         btn.disabled = state === "loading";
       }
+      function cleanupButtons() {
+        document.querySelectorAll(".cc2l-btn, .cc2l-share-btn").forEach((el) => el.remove());
+        document.querySelectorAll('style[id^="cc2l_"][id$="_style"]').forEach((el) => el.remove());
+      }
+      function isExtensionContextAlive() {
+        if (typeof chrome === "undefined" || !chrome.runtime) return true;
+        try {
+          void chrome.runtime.id;
+          return true;
+        } catch {
+          return false;
+        }
+      }
+      function extensionErrorMessage(err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes("Extension context invalidated")) {
+          return "Extension was reloaded — refresh this page and try again";
+        }
+        if (message.includes("Receiving end does not exist")) {
+          return "Extension service worker unavailable — refresh this page and try again";
+        }
+        return message;
+      }
       let pollInterval = null;
       function isOnGamePage() {
         return GAME_PATH_FRAGMENTS.some(
@@ -612,7 +638,7 @@ System.register("./app-Ddqqj6QO-B6fvmhk_.js", ['./__monkey.entry-DtvhJzbY.js'], 
           await analyseOnLichess();
           setState("cached");
         } catch (err) {
-          console.error("[chesscom-lichess-export]", err);
+          console.error("[chesscom-lichess-export]", extensionErrorMessage(err));
           setState("error");
           const id = extractGameId();
           const fallback = id && getStoredLichessUrl(id) ? "cached" : "idle";
@@ -638,11 +664,22 @@ System.register("./app-Ddqqj6QO-B6fvmhk_.js", ['./__monkey.entry-DtvhJzbY.js'], 
       function startApp() {
         if (pollInterval) return;
         pollInterval = setInterval(() => {
+          if (!isExtensionContextAlive()) {
+            cleanupApp();
+            return;
+          }
           tickMainButton();
           tickShareModalButton();
         }, 500);
         tickMainButton();
         tickShareModalButton();
+      }
+      function cleanupApp() {
+        if (pollInterval) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+        }
+        cleanupButtons();
       }
 
     })

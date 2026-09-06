@@ -14,6 +14,7 @@ import {
   ABORTED_GAME_SELECTORS,
   GAME_PATH_FRAGMENTS,
 } from './config';
+import { extensionErrorMessage, isExtensionContextAlive } from './platform/extension-alive';
 import { extractGameId, getStoredLichessUrl } from './storage';
 
 let pollInterval: ReturnType<typeof setInterval> | null = null;
@@ -43,7 +44,7 @@ async function runExport(
     await analyseOnLichess();
     setState('cached');
   } catch (err) {
-    console.error('[chesscom-lichess-export]', err);
+    console.error('[chesscom-lichess-export]', extensionErrorMessage(err));
     setState('error');
     const id = extractGameId();
     const fallback = id && getStoredLichessUrl(id) ? 'cached' : 'idle';
@@ -76,6 +77,10 @@ export function startApp(): void {
   if (pollInterval) return;
 
   pollInterval = setInterval(() => {
+    if (!isExtensionContextAlive()) {
+      cleanupApp();
+      return;
+    }
     tickMainButton();
     tickShareModalButton();
   }, 500);
