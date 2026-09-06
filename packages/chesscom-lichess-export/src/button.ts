@@ -128,10 +128,8 @@ function injectStyles(): void {
     }
     [data-cy="game-over-modal-shell-buttons"] .cc2l-btn,
     .game-over-modal-shell-buttons .cc2l-btn {
-      width: auto;
       padding: 1.3rem 2rem;
-      max-width: 100%;
-      margin: 8px 1.6rem;
+      margin-top: 8px;
     }
     .cc2l-btn svg,
     .cc2l-share-btn svg {

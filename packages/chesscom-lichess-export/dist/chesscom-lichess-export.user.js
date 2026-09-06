@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chess.com → Lichess Export
 // @namespace    https://github.com/pedro-mass/userscripts/chesscom-lichess-export
-// @version      1.0.0
+// @version      1.0.1
 // @author       pedro-mass
 // @description  One-click PGN export from Chess.com to Lichess (game-over modal, sidebar, share dialog)
 // @license      GPL-3.0-only
@@ -361,10 +361,8 @@
     }
     [data-cy="game-over-modal-shell-buttons"] .cc2l-btn,
     .game-over-modal-shell-buttons .cc2l-btn {
-      width: auto;
       padding: 1.3rem 2rem;
-      max-width: 100%;
-      margin: 8px 1.6rem;
+      margin-top: 8px;
     }
     .cc2l-btn svg,
     .cc2l-share-btn svg {
