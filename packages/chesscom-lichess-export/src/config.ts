@@ -19,6 +19,12 @@ export const SHARE_MODAL_SELECTORS = {
   modal: '[data-cy="share-menu-modal"], #share-modal',
   downloadBtn: 'button',
   injectId: 'cc2l-share-export-btn',
+  downloadAnchors: [
+    '#live_ShareMenuGlobalDialogDownloadButton',
+    '#chessboard_ShareMenuGlobalDialogDownloadButton',
+    '[data-cy="share-menu-download-button"]',
+    '[data-cy*="download"]',
+  ],
 } as const;
 
 export const PGN_SELECTORS = {

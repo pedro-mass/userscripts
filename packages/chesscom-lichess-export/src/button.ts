@@ -171,12 +171,65 @@ function buttonLabel(btn: Element): string {
   return `${btn.textContent ?? ''} ${btn.getAttribute('aria-label') ?? ''}`;
 }
 
-function findDownloadButton(modal: HTMLElement): HTMLButtonElement | null {
-  return (
-    Array.from(modal.querySelectorAll<HTMLButtonElement>('button')).find((btn) =>
-      /download/i.test(buttonLabel(btn)),
-    ) ?? null
+function findDownloadButton(root: ParentNode): HTMLElement | null {
+  for (const selector of SHARE_MODAL_SELECTORS.downloadAnchors) {
+    const el = root.querySelector<HTMLElement>(selector);
+    if (el && isVisible(el)) return el;
+  }
+
+  const candidates = root.querySelectorAll<HTMLElement>(
+    'button, a[role="button"], a[download]',
   );
+  return (
+    Array.from(candidates).find((el) => /download/i.test(buttonLabel(el))) ?? null
+  );
+}
+
+function textareaHasPgn(ta: HTMLTextAreaElement): boolean {
+  const text = (ta.value || ta.textContent || '').trim();
+  return /\[Event /m.test(text);
+}
+
+/** Share shell that contains both PGN UI and Download (often outside inner dialog). */
+function findShareInjectionContext(): {
+  container: HTMLElement;
+  downloadBtn: HTMLElement;
+} | null {
+  for (const ta of Array.from(
+    document.querySelectorAll<HTMLTextAreaElement>('textarea'),
+  )) {
+    if (!isVisible(ta) || !textareaHasPgn(ta)) continue;
+
+    let container: HTMLElement | null = ta;
+    for (let depth = 0; depth < 20 && container; depth++) {
+      const downloadBtn = findDownloadButton(container);
+      if (downloadBtn?.parentElement) {
+        return { container, downloadBtn };
+      }
+      container = container.parentElement;
+    }
+  }
+
+  const selectors = [
+    '[data-cy="share-menu-modal"]',
+    '#share-modal',
+    '[role="dialog"]',
+  ];
+  for (const selector of selectors) {
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
+      if (!isVisible(el)) continue;
+      let container: HTMLElement | null = el;
+      for (let depth = 0; depth < 15 && container; depth++) {
+        const downloadBtn = findDownloadButton(container);
+        if (downloadBtn?.parentElement && modalHasPgnUi(container)) {
+          return { container, downloadBtn };
+        }
+        container = container.parentElement;
+      }
+    }
+  }
+
+  return null;
 }
 
 function modalHasPgnUi(modal: HTMLElement): boolean {
@@ -188,25 +241,8 @@ function modalHasPgnUi(modal: HTMLElement): boolean {
   );
 }
 
-function findShareModal(): HTMLElement | null {
-  const selectors = [
-    '[data-cy="share-menu-modal"]',
-    '#share-modal',
-    '[role="dialog"]',
-  ];
-
-  for (const selector of selectors) {
-    for (const modal of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
-      if (!isVisible(modal)) continue;
-      if (findDownloadButton(modal) || modalHasPgnUi(modal)) return modal;
-    }
-  }
-
-  return null;
-}
-
 export function isShareModalOpen(): boolean {
-  return findShareModal() !== null;
+  return findShareInjectionContext() !== null;
 }
 
 export function removeShareModalButton(): void {
@@ -214,11 +250,11 @@ export function removeShareModalButton(): void {
 }
 
 export function injectShareModalButton(onClick: () => void): void {
-  const modal = findShareModal();
-  if (!modal || modal.querySelector(`#${SHARE_MODAL_SELECTORS.injectId}`)) return;
+  const ctx = findShareInjectionContext();
+  if (!ctx || document.getElementById(SHARE_MODAL_SELECTORS.injectId)) return;
 
-  const downloadBtn = findDownloadButton(modal);
-  if (!downloadBtn?.parentElement) return;
+  const { downloadBtn } = ctx;
+  if (!downloadBtn.parentElement) return;
 
   const btn = document.createElement('button');
   btn.id = SHARE_MODAL_SELECTORS.injectId;

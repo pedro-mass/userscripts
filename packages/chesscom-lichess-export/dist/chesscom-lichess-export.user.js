@@ -24,7 +24,7 @@
 // ==/UserScript==
 
 
-System.register("./__entry.js", ['./__monkey.entry-ToYBPieE.js'], (function (exports, module) {
+System.register("./__entry.js", ['./__monkey.entry-YJV5V-2d.js'], (function (exports, module) {
 	'use strict';
 	return {
 		setters: [null],
@@ -36,7 +36,7 @@ System.register("./__entry.js", ['./__monkey.entry-ToYBPieE.js'], (function (exp
 	};
 }));
 
-System.register("./__monkey.entry-ToYBPieE.js", [], (function (exports, module) {
+System.register("./__monkey.entry-YJV5V-2d.js", [], (function (exports, module) {
   'use strict';
   return {
     execute: (function () {
@@ -178,7 +178,7 @@ System.register("./__monkey.entry-ToYBPieE.js", [], (function (exports, module) 
       } else {
         setPlatform(userscriptPlatform);
         void __vitePreload(async () => {
-          const { startApp } = await module.import('./app-B4SuMOv7-r4KX4sdz.js');
+          const { startApp } = await module.import('./app-C7_Xd4_Q-C0QbKS21.js');
           return { startApp };
         }, void 0 ).then(({ startApp }) => startApp());
       }
@@ -187,7 +187,7 @@ System.register("./__monkey.entry-ToYBPieE.js", [], (function (exports, module) 
   };
 }));
 
-System.register("./app-B4SuMOv7-r4KX4sdz.js", ['./__monkey.entry-ToYBPieE.js'], (function (exports, module) {
+System.register("./app-C7_Xd4_Q-C0QbKS21.js", ['./__monkey.entry-YJV5V-2d.js'], (function (exports, module) {
   'use strict';
   var getPlatform;
   return {
@@ -230,7 +230,13 @@ System.register("./app-B4SuMOv7-r4KX4sdz.js", ['./__monkey.entry-ToYBPieE.js'], 
         ".game-review-buttons-component"
       ];
       const SHARE_MODAL_SELECTORS = {
-        injectId: "cc2l-share-export-btn"
+        injectId: "cc2l-share-export-btn",
+        downloadAnchors: [
+          "#live_ShareMenuGlobalDialogDownloadButton",
+          "#chessboard_ShareMenuGlobalDialogDownloadButton",
+          '[data-cy="share-menu-download-button"]',
+          '[data-cy*="download"]'
+        ]
       };
       const PGN_SELECTORS = {
         secondaryMenu: ".game-controls-secondary-more > button, .game-controls-secondary-button > button",
@@ -561,10 +567,53 @@ System.register("./app-B4SuMOv7-r4KX4sdz.js", ['./__monkey.entry-ToYBPieE.js'], 
       function buttonLabel(btn) {
         return `${btn.textContent ?? ""} ${btn.getAttribute("aria-label") ?? ""}`;
       }
-      function findDownloadButton(modal) {
-        return Array.from(modal.querySelectorAll("button")).find(
-          (btn) => /download/i.test(buttonLabel(btn))
-        ) ?? null;
+      function findDownloadButton(root) {
+        for (const selector of SHARE_MODAL_SELECTORS.downloadAnchors) {
+          const el = root.querySelector(selector);
+          if (el && isVisible(el)) return el;
+        }
+        const candidates = root.querySelectorAll(
+          'button, a[role="button"], a[download]'
+        );
+        return Array.from(candidates).find((el) => /download/i.test(buttonLabel(el))) ?? null;
+      }
+      function textareaHasPgn(ta) {
+        const text = (ta.value || ta.textContent || "").trim();
+        return /\[Event /m.test(text);
+      }
+      function findShareInjectionContext() {
+        for (const ta of Array.from(
+          document.querySelectorAll("textarea")
+        )) {
+          if (!isVisible(ta) || !textareaHasPgn(ta)) continue;
+          let container = ta;
+          for (let depth = 0; depth < 20 && container; depth++) {
+            const downloadBtn = findDownloadButton(container);
+            if (downloadBtn == null ? void 0 : downloadBtn.parentElement) {
+              return { container, downloadBtn };
+            }
+            container = container.parentElement;
+          }
+        }
+        const selectors = [
+          '[data-cy="share-menu-modal"]',
+          "#share-modal",
+          '[role="dialog"]'
+        ];
+        for (const selector of selectors) {
+          for (const el of Array.from(document.querySelectorAll(selector))) {
+            if (!isVisible(el)) continue;
+            let container = el;
+            for (let depth = 0; depth < 15 && container; depth++) {
+              const downloadBtn = findDownloadButton(container);
+              if ((downloadBtn == null ? void 0 : downloadBtn.parentElement) && modalHasPgnUi(container)) {
+                return { container, downloadBtn };
+              }
+              container = container.parentElement;
+            }
+          }
+        }
+        return null;
       }
       function modalHasPgnUi(modal) {
         if (modal.querySelector(PGN_SELECTORS.textarea)) return true;
@@ -574,32 +623,18 @@ System.register("./app-B4SuMOv7-r4KX4sdz.js", ['./__monkey.entry-ToYBPieE.js'], 
           (ta) => /\[Event /m.test(ta.value || ta.textContent || "")
         );
       }
-      function findShareModal() {
-        const selectors = [
-          '[data-cy="share-menu-modal"]',
-          "#share-modal",
-          '[role="dialog"]'
-        ];
-        for (const selector of selectors) {
-          for (const modal of Array.from(document.querySelectorAll(selector))) {
-            if (!isVisible(modal)) continue;
-            if (findDownloadButton(modal) || modalHasPgnUi(modal)) return modal;
-          }
-        }
-        return null;
-      }
       function isShareModalOpen() {
-        return findShareModal() !== null;
+        return findShareInjectionContext() !== null;
       }
       function removeShareModalButton() {
         var _a;
         (_a = document.getElementById(SHARE_MODAL_SELECTORS.injectId)) == null ? void 0 : _a.remove();
       }
       function injectShareModalButton(onClick) {
-        const modal = findShareModal();
-        if (!modal || modal.querySelector(`#${SHARE_MODAL_SELECTORS.injectId}`)) return;
-        const downloadBtn = findDownloadButton(modal);
-        if (!(downloadBtn == null ? void 0 : downloadBtn.parentElement)) return;
+        const ctx = findShareInjectionContext();
+        if (!ctx || document.getElementById(SHARE_MODAL_SELECTORS.injectId)) return;
+        const { downloadBtn } = ctx;
+        if (!downloadBtn.parentElement) return;
         const btn = document.createElement("button");
         btn.id = SHARE_MODAL_SELECTORS.injectId;
         btn.type = "button";
