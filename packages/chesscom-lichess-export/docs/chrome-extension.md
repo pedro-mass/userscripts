@@ -56,14 +56,12 @@ Build:
 
 ```bash
 pnpm build:extension:chesscom          # production bundle → dist/extension/
-pnpm dev:extension:chesscom            # watch + warm-reload on open chess.com tabs
+pnpm dev:extension:chesscom            # watch; extension auto-reloads on rebuild
 ```
 
 Load unpacked: `packages/chesscom-lichess-export/dist/extension/` in `chrome://extensions`.
 
-Requires Chromium **110+** (module content scripts). After manifest changes, click **Reload** on the extension card.
-
-Dev warm-reload: service worker polls `build-meta.json`; on rebuild, open chess.com tabs re-import `app.js` without a full page refresh.
+Content script is a single IIFE bundle (no ESM `import` at runtime) for Brave/Chromium compatibility. After a dev rebuild, refresh the chess.com tab once.
 
 - `manifest.json`: `content_scripts` on `https://www.chess.com/*`, `https://chess.com/*`
 - No remote code; plain Vite multi-entry build (`vite.config.extension.ts`)

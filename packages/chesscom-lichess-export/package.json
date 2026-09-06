@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "build:extension": "tsc && vite build --config vite.config.extension.ts",
+    "build:extension": "tsc && node scripts/build-extension.mjs",
     "dev:extension": "node scripts/extension-dev.mjs",
     "preview": "vite preview",
     "capture:store": "node scripts/capture-store-images.mjs"

@@ -1,0 +1,1 @@
+chrome.runtime.onMessage.addListener((e,a,r)=>{if(e.type==="HTTP_POST_FORM")return fetch(e.url,{method:"POST",headers:e.headers,body:e.data}).then(async t=>{r({ok:!0,status:t.status,responseText:await t.text()})}).catch(t=>{r({ok:!1,error:t instanceof Error?t.message:String(t)})}),!0});

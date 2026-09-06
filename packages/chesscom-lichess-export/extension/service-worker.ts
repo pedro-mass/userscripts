@@ -53,22 +53,11 @@ if (import.meta.env.DEV) {
       try {
         const res = await fetch(chrome.runtime.getURL('build-meta.json'));
         if (!res.ok) return;
-        const meta = (await res.json()) as { stamp?: string; appChunk?: string };
+        const meta = (await res.json()) as { stamp?: string };
         if (!meta.stamp || meta.stamp === lastStamp) return;
 
         if (lastStamp) {
-          const tabs = await chrome.tabs.query({
-            url: ['*://www.chess.com/*', '*://chess.com/*'],
-          });
-          for (const tab of tabs) {
-            if (!tab.id) continue;
-            void chrome.tabs
-              .sendMessage(tab.id, {
-                type: 'DEV_RELOAD',
-                appChunk: meta.appChunk ?? 'app.js',
-              })
-              .catch(() => undefined);
-          }
+          chrome.runtime.reload();
         }
 
         lastStamp = meta.stamp;

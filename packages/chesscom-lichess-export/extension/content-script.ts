@@ -1,11 +1,6 @@
 import { cleanupApp, startApp } from '../src/app';
 import { initExtensionPlatform } from './platform';
 
-interface DevReloadMessage {
-  type: 'DEV_RELOAD';
-  appChunk: string;
-}
-
 async function boot(): Promise<void> {
   await initExtensionPlatform();
   document.documentElement.dataset.cc2lExtension = '1';
@@ -19,18 +14,12 @@ async function boot(): Promise<void> {
   startApp();
 }
 
-async function warmReload(appChunk: string): Promise<void> {
-  cleanupApp();
-  const url = `${chrome.runtime.getURL(appChunk)}?t=${Date.now()}`;
-  const mod = await import(/* @vite-ignore */ url);
-  if (typeof mod.startApp === 'function') {
-    mod.startApp();
-  }
-}
-
 void boot();
 
-chrome.runtime.onMessage.addListener((message: DevReloadMessage) => {
-  if (message.type !== 'DEV_RELOAD') return;
-  void warmReload(message.appChunk);
+// Dev: service worker reloads extension on rebuild; refresh chess.com tab to pick up changes.
+chrome.runtime.onMessage.addListener((message: { type: string }) => {
+  if (message.type === 'DEV_RELOAD') {
+    cleanupApp();
+    startApp();
+  }
 });
