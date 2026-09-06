@@ -9,7 +9,7 @@ export async function analyseOnLichess(): Promise<void> {
   if (gameId) {
     const cachedUrl = getStoredLichessUrl(gameId);
     if (cachedUrl) {
-      getPlatform().tabs.open(cachedUrl, true);
+      await getPlatform().tabs.open(cachedUrl, true);
       return;
     }
   }
@@ -25,5 +25,5 @@ export async function analyseOnLichess(): Promise<void> {
     saveLichessUrl(gameId, result.url);
   }
 
-  getPlatform().tabs.open(result.url, true);
+  await getPlatform().tabs.open(result.url, true);
 }

@@ -5,9 +5,15 @@ interface HttpPostMessage {
   headers: Record<string, string>;
 }
 
-type ServiceWorkerMessage = HttpPostMessage;
+interface OpenTabMessage {
+  type: 'OPEN_TAB';
+  url: string;
+  active: boolean;
+}
 
-interface HttpPostResponse {
+type ServiceWorkerMessage = HttpPostMessage | OpenTabMessage;
+
+interface ServiceWorkerResponse {
   ok: boolean;
   status?: number;
   responseText?: string;
@@ -18,8 +24,21 @@ chrome.runtime.onMessage.addListener(
   (
     message: ServiceWorkerMessage,
     _sender,
-    sendResponse: (response: HttpPostResponse) => void,
+    sendResponse: (response: ServiceWorkerResponse) => void,
   ) => {
+    if (message.type === 'OPEN_TAB') {
+      void chrome.tabs
+        .create({ url: message.url, active: message.active })
+        .then(() => sendResponse({ ok: true }))
+        .catch((err: unknown) => {
+          sendResponse({
+            ok: false,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      return true;
+    }
+
     if (message.type !== 'HTTP_POST_FORM') return;
 
     void fetch(message.url, {
@@ -57,8 +76,9 @@ if (import.meta.env.DEV) {
         if (!meta.stamp || meta.stamp === lastStamp) return;
 
         if (lastStamp) {
-          // Avoid invalidating open chess.com tabs mid-test; reload manually in dev.
-          console.info('[cc2l] Extension rebuilt — reload this extension, then refresh chess.com');
+          console.info(
+            '[cc2l] Extension rebuilt — reload this extension, then refresh chess.com',
+          );
         }
 
         lastStamp = meta.stamp;

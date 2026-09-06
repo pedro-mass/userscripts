@@ -11,6 +11,6 @@ export interface Platform {
     ): Promise<{ status: number; responseText: string }>;
   };
   tabs: {
-    open(url: string, active?: boolean): void;
+    open(url: string, active?: boolean): Promise<void>;
   };
 }

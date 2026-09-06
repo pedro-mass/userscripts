@@ -160,24 +160,53 @@ function injectStyles(): void {
   document.head.appendChild(style);
 }
 
-export function isShareModalOpen(): boolean {
-  const modal = document.querySelector<HTMLElement>(SHARE_MODAL_SELECTORS.modal);
-  if (!modal) return false;
-
-  const style = getComputedStyle(modal);
+function isVisible(el: HTMLElement): boolean {
+  const style = getComputedStyle(el);
   if (style.display === 'none' || style.visibility === 'hidden') return false;
+  const rect = el.getBoundingClientRect();
+  return rect.width >= 8 && rect.height >= 8;
+}
 
-  const rect = modal.getBoundingClientRect();
-  if (rect.width < 8 || rect.height < 8) return false;
+function buttonLabel(btn: Element): string {
+  return `${btn.textContent ?? ''} ${btn.getAttribute('aria-label') ?? ''}`;
+}
 
-  const hasDownload = Array.from(modal.querySelectorAll('button')).some((btn) =>
-    /download/i.test(btn.textContent ?? ''),
+function findDownloadButton(modal: HTMLElement): HTMLButtonElement | null {
+  return (
+    Array.from(modal.querySelectorAll<HTMLButtonElement>('button')).find((btn) =>
+      /download/i.test(buttonLabel(btn)),
+    ) ?? null
   );
-  const hasPgnUi =
-    modal.querySelector(PGN_SELECTORS.textarea) !== null ||
-    modal.querySelector(PGN_SELECTORS.pgnTab) !== null;
+}
 
-  return hasDownload || hasPgnUi;
+function modalHasPgnUi(modal: HTMLElement): boolean {
+  if (modal.querySelector(PGN_SELECTORS.textarea)) return true;
+  if (modal.querySelector(PGN_SELECTORS.pgnTab)) return true;
+  if (modal.querySelector('[data-cy="pgn-tab-button"]')) return true;
+  return Array.from(modal.querySelectorAll('textarea')).some((ta) =>
+    /\[Event /m.test(ta.value || ta.textContent || ''),
+  );
+}
+
+function findShareModal(): HTMLElement | null {
+  const selectors = [
+    '[data-cy="share-menu-modal"]',
+    '#share-modal',
+    '[role="dialog"]',
+  ];
+
+  for (const selector of selectors) {
+    for (const modal of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
+      if (!isVisible(modal)) continue;
+      if (findDownloadButton(modal) || modalHasPgnUi(modal)) return modal;
+    }
+  }
+
+  return null;
+}
+
+export function isShareModalOpen(): boolean {
+  return findShareModal() !== null;
 }
 
 export function removeShareModalButton(): void {
@@ -185,14 +214,10 @@ export function removeShareModalButton(): void {
 }
 
 export function injectShareModalButton(onClick: () => void): void {
-  if (!isShareModalOpen()) return;
-
-  const modal = document.querySelector<HTMLElement>(SHARE_MODAL_SELECTORS.modal);
+  const modal = findShareModal();
   if (!modal || modal.querySelector(`#${SHARE_MODAL_SELECTORS.injectId}`)) return;
 
-  const downloadBtn = Array.from(modal.querySelectorAll('button')).find((btn) =>
-    /download/i.test(btn.textContent ?? ''),
-  );
+  const downloadBtn = findDownloadButton(modal);
   if (!downloadBtn?.parentElement) return;
 
   const btn = document.createElement('button');

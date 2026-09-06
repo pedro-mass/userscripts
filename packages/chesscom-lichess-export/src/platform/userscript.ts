@@ -39,6 +39,7 @@ export const userscriptPlatform: Platform = {
   tabs: {
     open(url, active = true) {
       GM_openInTab(url, { active, insert: true });
+      return Promise.resolve();
     },
   },
 };

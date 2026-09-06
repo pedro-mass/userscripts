@@ -80,11 +80,15 @@ export async function initExtensionPlatform(): Promise<void> {
       },
     },
     tabs: {
-      open(url, active = true) {
-        if (!isExtensionContextAlive()) {
-          throw new Error('Extension context invalidated');
+      async open(url, active = true) {
+        const response = await sendServiceWorkerMessage<{ ok: boolean; error?: string }>({
+          type: 'OPEN_TAB',
+          url,
+          active,
+        });
+        if (!response.ok) {
+          throw new Error(response.error ?? 'Failed to open tab');
         }
-        void chrome.tabs.create({ url, active });
       },
     },
   };
