@@ -19,6 +19,8 @@ const AUTH_FILE = join(AUTH_DIR, 'storage-state.json');
 const GF = 'https://greasyfork.org/en';
 const GH_RAW =
   'https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages';
+const LOGIN_TIMEOUT_MS =
+  Number(process.env.GREASYFORK_LOGIN_TIMEOUT_MS) || 15 * 60 * 1000;
 
 const usage = `Usage:
   node scripts/greasyfork/publish.mjs login
@@ -136,11 +138,14 @@ async function cmdLogin() {
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto(`${GF}/users/sign_in`);
-  console.log('Sign in to Greasy Fork in the browser window...');
-  await page.waitForFunction(
-    () => document.body?.innerText?.includes('Sign out'),
-    { timeout: 300_000 },
+  const waitMins = Math.round(LOGIN_TIMEOUT_MS / 60_000);
+  console.log(
+    `Sign in to Greasy Fork in the browser window (waiting up to ${waitMins} minutes)...`,
   );
+  await page.getByRole('link', { name: 'Sign out' }).waitFor({
+    state: 'visible',
+    timeout: LOGIN_TIMEOUT_MS,
+  });
   await context.storageState({ path: AUTH_FILE });
   console.log(`Saved session to ${AUTH_FILE}`);
   await browser.close();
