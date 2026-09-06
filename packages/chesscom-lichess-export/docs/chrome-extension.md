@@ -38,21 +38,33 @@ Copy for listing: `greasyfork.additional-info.md` (features, GPL, attribution).
 
 ### 1. Platform adapters (small)
 
-- `importPgn` / storage behind interfaces used by `analyseOnLichess.ts`
-- Userscript keeps `GM_*`; extension injects `chrome.*` implementations
-- One test path: run userscript build unchanged
+- `src/platform/` — `Platform` interface; userscript (`GM_*`) vs extension (`chrome.*`) implementations
+- `src/app.ts` — shared DOM poll loop; `src/entry-userscript.ts` wires userscript platform
+- Userscript build unchanged behavior (`pnpm build:chesscom`)
 
 ### 2. MV3 package
 
 ```
 packages/chesscom-lichess-export/extension/
   manifest.json       # MV3, chess.com host_permissions, lichess.org
-  service-worker.ts   # fetch POST /api/import
-  content-script.ts   # imports ../src/main.ts entry or shared init
+  service-worker.ts   # fetch POST /api/import + dev warm-reload broadcast
+  content-script.ts   # platform init → src/app.ts
+  platform.ts         # chrome.storage + messaging adapters
 ```
 
+Build:
+
+```bash
+pnpm build:extension:chesscom          # production bundle → dist/extension/
+pnpm dev:extension:chesscom            # watch + warm-reload on open chess.com tabs
+```
+
+Load unpacked: `packages/chesscom-lichess-export/dist/extension/` in `chrome://extensions`.
+
+Dev warm-reload: service worker polls `build-meta.json`; on rebuild, open chess.com tabs re-import `app.js` without a full page refresh.
+
 - `manifest.json`: `content_scripts` on `https://www.chess.com/*`, `https://chess.com/*`
-- No remote code; bundle with Vite (second build target or `@crxjs/vite-plugin`)
+- No remote code; plain Vite multi-entry build (`vite.config.extension.ts`)
 - Permissions: `storage`, host permission `https://lichess.org/*`
 
 ### 3. CWS submission

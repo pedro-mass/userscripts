@@ -6,6 +6,8 @@
     "build": "pnpm --filter @userscripts/live-chart-filter build",
     "build:all": "pnpm -r build",
     "build:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export build",
+    "build:extension:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export build:extension",
+    "dev:extension:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export dev:extension",
     "dev": "pnpm --filter @userscripts/live-chart-filter dev",
     "dev:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export dev",
     "greasyfork:login": "node scripts/greasyfork/publish.mjs login",

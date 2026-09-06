@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:extension": "tsc && vite build --config vite.config.extension.ts",
+    "dev:extension": "node scripts/extension-dev.mjs",
     "preview": "vite preview",
     "capture:store": "node scripts/capture-store-images.mjs"
   },
   "devDependencies": {
+    "@types/chrome": "^0.0.320",
     "typescript": "^5.9.2",
     "vite": "^6.3.5",
     "vite-plugin-monkey": "^6.0.0"
