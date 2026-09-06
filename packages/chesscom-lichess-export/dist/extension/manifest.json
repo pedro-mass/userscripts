@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Chess.com → Lichess Export",
+  "version": "1.0.6",
+  "description": "One-click PGN export from Chess.com to Lichess (game-over modal, sidebar, share dialog)",
+  "icons": {
+    "48": "images/icon-48.png",
+    "128": "images/icon-128.png"
+  },
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://www.chess.com/*",
+    "https://chess.com/*",
+    "https://lichess.org/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.chess.com/*", "https://chess.com/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
