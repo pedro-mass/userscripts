@@ -16,10 +16,14 @@ export const BUTTON_ANCHOR_SELECTORS = [
 ];
 
 export const SHARE_MODAL_SELECTORS = {
-  modal: '[data-cy="share-menu-modal"], #share-modal',
+  modal:
+    'dialog.cc-modal-component-v2, dialog[open], [data-cy="share-menu-modal"], #share-modal',
+  shell: '.share-menu-tab-pgn-component, .share-menu-content',
   downloadBtn: 'button',
   injectId: 'cc2l-share-export-btn',
   downloadAnchors: [
+    '.share-menu-tab-pgn-component .cc-button-primary',
+    '.share-menu-content .cc-button-primary',
     '#live_ShareMenuGlobalDialogDownloadButton',
     '#chessboard_ShareMenuGlobalDialogDownloadButton',
     '[data-cy="share-menu-download-button"]',

@@ -1,7 +1,6 @@
 import lichessLogoSvg from './assets/lichess-logo.svg?raw';
 import {
   BUTTON_ANCHOR_SELECTORS,
-  PGN_SELECTORS,
   SHARE_MODAL_SELECTORS,
   WIN_MODAL_TEXT,
 } from './config';
@@ -185,20 +184,40 @@ function findDownloadButton(root: ParentNode): HTMLElement | null {
   );
 }
 
-function textareaHasPgn(ta: HTMLTextAreaElement): boolean {
-  const text = (ta.value || ta.textContent || '').trim();
-  return /\[Event /m.test(text);
+function isDialogOpen(el: HTMLElement): boolean {
+  if (el instanceof HTMLDialogElement) return el.open;
+  return isVisible(el);
 }
 
-/** Share shell that contains both PGN UI and Download (often outside inner dialog). */
 function findShareInjectionContext(): {
   container: HTMLElement;
   downloadBtn: HTMLElement;
 } | null {
-  for (const ta of Array.from(
-    document.querySelectorAll<HTMLTextAreaElement>('textarea'),
+  for (const dialog of Array.from(
+    document.querySelectorAll<HTMLElement>(
+      'dialog.cc-modal-component-v2, dialog',
+    ),
   )) {
-    if (!isVisible(ta) || !textareaHasPgn(ta)) continue;
+    if (!isDialogOpen(dialog)) continue;
+
+    const shell =
+      dialog.querySelector<HTMLElement>(SHARE_MODAL_SELECTORS.shell) ?? dialog;
+    const downloadBtn = findDownloadButton(shell);
+    const textarea = shell.querySelector<HTMLTextAreaElement>(
+      'textarea[name=pgn], textarea[aria-label="PGN"], .share-menu-tab-pgn-textarea',
+    );
+
+    if (downloadBtn?.parentElement && textarea) {
+      return { container: shell, downloadBtn };
+    }
+  }
+
+  for (const ta of Array.from(
+    document.querySelectorAll<HTMLTextAreaElement>(
+      'textarea[name=pgn], textarea[aria-label="PGN"], .share-menu-tab-pgn-textarea',
+    ),
+  )) {
+    if (!isVisible(ta)) continue;
 
     let container: HTMLElement | null = ta;
     for (let depth = 0; depth < 20 && container; depth++) {
@@ -210,35 +229,7 @@ function findShareInjectionContext(): {
     }
   }
 
-  const selectors = [
-    '[data-cy="share-menu-modal"]',
-    '#share-modal',
-    '[role="dialog"]',
-  ];
-  for (const selector of selectors) {
-    for (const el of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
-      if (!isVisible(el)) continue;
-      let container: HTMLElement | null = el;
-      for (let depth = 0; depth < 15 && container; depth++) {
-        const downloadBtn = findDownloadButton(container);
-        if (downloadBtn?.parentElement && modalHasPgnUi(container)) {
-          return { container, downloadBtn };
-        }
-        container = container.parentElement;
-      }
-    }
-  }
-
   return null;
-}
-
-function modalHasPgnUi(modal: HTMLElement): boolean {
-  if (modal.querySelector(PGN_SELECTORS.textarea)) return true;
-  if (modal.querySelector(PGN_SELECTORS.pgnTab)) return true;
-  if (modal.querySelector('[data-cy="pgn-tab-button"]')) return true;
-  return Array.from(modal.querySelectorAll('textarea')).some((ta) =>
-    /\[Event /m.test(ta.value || ta.textContent || ''),
-  );
 }
 
 export function isShareModalOpen(): boolean {
