@@ -1,5 +1,5 @@
 import { setPlatform } from '../src/platform/context';
-import { extensionErrorMessage, isExtensionContextAlive } from '../src/platform/extension-alive';
+import { isExtensionContextAlive } from '../src/platform/extension-alive';
 import { STORAGE_KEY } from '../src/storage';
 import type { Platform } from '../src/platform/types';
 
