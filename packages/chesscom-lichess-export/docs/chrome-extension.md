@@ -69,8 +69,15 @@ Content script is a single IIFE bundle (no ESM `import` at runtime) for Brave/Ch
 
 ### 3. CWS submission
 
+**Status:** extension **1.0.13** ready to upload. Listing copy: [cws-listing.md](./cws-listing.md). Privacy: [PRIVACY.md](../PRIVACY.md).
+
+```bash
+pnpm build:extension:chesscom
+pnpm package:extension:chesscom   # zip for dashboard upload
+```
+
 - Developer account ($5 one-time)
-- Privacy policy URL (GitHub repo README or short `PRIVACY.md` — no data leaves browser except Lichess API)
+- Privacy policy URL: `PRIVACY.md` on GitHub (linked in listing doc)
 - Single purpose: export chess.com games to Lichess for analysis
 - Screenshots + icons from `store/images/`
 - GPL-3.0-only — source link in listing (same GitHub tree)
@@ -83,10 +90,11 @@ Content script is a single IIFE bundle (no ESM `import` at runtime) for Brave/Ch
 
 ## Release flow (extension)
 
-1. Bump version in `vite.config.ts` + `extension/manifest.json`
-2. `pnpm build:chesscom` + extension build (TBD)
-3. Zip for CWS dashboard upload
-4. Userscript GF listing stays for Tampermonkey users; CWS for non-technical users
+1. Bump version in `extension/manifest.json`
+2. `pnpm build:extension:chesscom` + `pnpm package:extension:chesscom`
+3. Upload zip to CWS dashboard (see [cws-listing.md](./cws-listing.md))
+4. Tag GitHub release `chesscom-extension-v<version>` with zip asset
+5. Userscript GF listing stays for Tampermonkey users; CWS for non-technical users
 
 ## Related
 

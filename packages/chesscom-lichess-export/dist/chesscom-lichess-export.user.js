@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chess.com → Lichess Export
 // @namespace    https://github.com/pedro-mass/userscripts/chesscom-lichess-export
-// @version      1.0.1
+// @version      1.0.2
 // @author       pedro-mass
 // @description  One-click PGN export from Chess.com to Lichess (game-over modal, sidebar, share dialog)
 // @license      GPL-3.0-only
@@ -24,7 +24,7 @@
 // ==/UserScript==
 
 
-System.register("./__entry.js", ['./__monkey.entry-DeXIilVr.js'], (function (exports, module) {
+System.register("./__entry.js", ['./__monkey.entry-Wubo5ihf.js'], (function (exports, module) {
 	'use strict';
 	return {
 		setters: [null],
@@ -36,7 +36,7 @@ System.register("./__entry.js", ['./__monkey.entry-DeXIilVr.js'], (function (exp
 	};
 }));
 
-System.register("./__monkey.entry-DeXIilVr.js", [], (function (exports, module) {
+System.register("./__monkey.entry-Wubo5ihf.js", [], (function (exports, module) {
   'use strict';
   return {
     execute: (function () {
@@ -178,7 +178,7 @@ System.register("./__monkey.entry-DeXIilVr.js", [], (function (exports, module) 
       } else {
         setPlatform(userscriptPlatform);
         void __vitePreload(async () => {
-          const { startApp } = await module.import('./app-D1QEnbGa-CU8TT_7b.js');
+          const { startApp } = await module.import('./app-CcFBVxiC--xVhVOKv.js');
           return { startApp };
         }, void 0 ).then(({ startApp }) => startApp());
       }
@@ -187,7 +187,7 @@ System.register("./__monkey.entry-DeXIilVr.js", [], (function (exports, module) 
   };
 }));
 
-System.register("./app-D1QEnbGa-CU8TT_7b.js", ['./__monkey.entry-DeXIilVr.js'], (function (exports, module) {
+System.register("./app-CcFBVxiC--xVhVOKv.js", ['./__monkey.entry-Wubo5ihf.js'], (function (exports, module) {
   'use strict';
   var getPlatform;
   return {
@@ -541,15 +541,21 @@ System.register("./app-D1QEnbGa-CU8TT_7b.js", ['./__monkey.entry-DeXIilVr.js'], 
       flex-shrink: 0;
     }
     .cc2l-share-btn {
-      margin-top: 0;
-      margin-bottom: 12px;
+      margin: 0;
       padding: 12px 16px;
       font-size: 16px;
     }
-    .share-menu-tab-pgn-component .cc2l-share-btn,
-    .share-menu-content .cc2l-share-btn {
-      margin-top: 0;
-      margin-bottom: 12px;
+    .cc2l-share-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 0 !important;
+      padding-top: 0 !important;
+    }
+    .cc2l-share-actions .cc2l-share-btn,
+    .cc2l-share-actions > .cc-button-primary,
+    .cc2l-share-actions > button {
+      margin: 0 !important;
     }
     .cc2l-share-btn svg {
       width: 20px;
@@ -627,8 +633,11 @@ System.register("./app-D1QEnbGa-CU8TT_7b.js", ['./__monkey.entry-DeXIilVr.js'], 
         return findShareInjectionContext() !== null;
       }
       function removeShareModalButton() {
-        var _a;
-        (_a = document.getElementById(SHARE_MODAL_SELECTORS.injectId)) == null ? void 0 : _a.remove();
+        const btn = document.getElementById(SHARE_MODAL_SELECTORS.injectId);
+        if (!btn) return;
+        const parent = btn.parentElement;
+        btn.remove();
+        parent == null ? void 0 : parent.classList.remove("cc2l-share-actions");
       }
       function injectShareModalButton(onClick) {
         const ctx = findShareInjectionContext();
@@ -642,7 +651,9 @@ System.register("./app-D1QEnbGa-CU8TT_7b.js", ['./__monkey.entry-DeXIilVr.js'], 
         btn.innerHTML = SHARE_IDLE;
         btn.addEventListener("click", onClick);
         injectStyles();
-        downloadBtn.parentElement.insertBefore(btn, downloadBtn);
+        const actions = downloadBtn.parentElement;
+        actions.classList.add("cc2l-share-actions");
+        actions.insertBefore(btn, downloadBtn);
       }
       function setShareModalButtonState(state) {
         const btn = document.getElementById(

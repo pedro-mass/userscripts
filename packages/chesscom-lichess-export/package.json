@@ -1,13 +1,14 @@
 {
   "name": "@userscripts/chesscom-lichess-export",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "build:extension": "tsc && node scripts/build-extension.mjs",
     "dev:extension": "node scripts/extension-dev.mjs",
+    "package:extension": "node scripts/package-extension.mjs",
     "preview": "vite preview",
     "capture:store": "node scripts/capture-store-images.mjs"
   },

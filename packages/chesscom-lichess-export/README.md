@@ -4,16 +4,23 @@ One-click PGN export from Chess.com to Lichess (game-over modal, Game Review sid
 
 ## Install
 
-**Greasy Fork:** [594491 - Chess.com → Lichess Export](https://greasyfork.org/en/scripts/594491-chess-com-lichess-export) (recommended)
+**Chrome Web Store:** upload `dist/chesscom-lichess-export-extension-<version>.zip` (see [docs/cws-listing.md](./docs/cws-listing.md)). Load unpacked for dev: `dist/extension/` in `chrome://extensions`.
+
+**Greasy Fork:** [594491 - Chess.com → Lichess Export](https://greasyfork.org/en/scripts/594491-chess-com-lichess-export) (Tampermonkey / Violentmonkey)
 
 Store images: [`store/`](./store/) · regenerate with `pnpm capture:store`
 
-Chrome extension plan: [docs/chrome-extension.md](./docs/chrome-extension.md)
-
-Dev: build `dist/chesscom-lichess-export.user.js` and install in Tampermonkey / Violentmonkey.
+Extension build: [docs/chrome-extension.md](./docs/chrome-extension.md) · Privacy: [PRIVACY.md](./PRIVACY.md)
 
 ```bash
-pnpm --filter @userscripts/chesscom-lichess-export build
+pnpm build:extension:chesscom    # → dist/extension/
+pnpm package:extension:chesscom  # → dist/chesscom-lichess-export-extension-<version>.zip
+```
+
+Userscript dev build:
+
+```bash
+pnpm build:chesscom
 ```
 
 ## Derivative work

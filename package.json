@@ -7,6 +7,7 @@
     "build:all": "pnpm -r build",
     "build:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export build",
     "build:extension:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export build:extension",
+    "package:extension:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export package:extension",
     "dev:extension:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export dev:extension",
     "dev": "pnpm --filter @userscripts/live-chart-filter dev",
     "dev:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export dev",
