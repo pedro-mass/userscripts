@@ -8,6 +8,8 @@ One-click PGN export from Chess.com to Lichess (game-over modal, Game Review sid
 
 Store images: [`store/`](./store/) · regenerate with `pnpm capture:store`
 
+Chrome extension plan: [docs/chrome-extension.md](./docs/chrome-extension.md)
+
 Dev: build `dist/chesscom-lichess-export.user.js` and install in Tampermonkey / Violentmonkey.
 
 ```bash

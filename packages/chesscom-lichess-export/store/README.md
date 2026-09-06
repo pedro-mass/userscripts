@@ -19,6 +19,8 @@ Source: [`screenshots.html`](./screenshots.html) (chess.com-style mocks with shi
 | `images/share-modal.png` | 1280×800 | GF listing, CWS screenshot |
 | `images/promo-1280x800.png` | 1280×800 | CWS marquee / hero |
 | `images/promo-440x280.png` | 440×280 | CWS small promo tile |
+| `images/icon-128.png` | 128×128 | Extension / CWS icon |
+| `images/icon-48.png` | 48×48 | Extension toolbar icon |
 
 After changing mocks, re-run capture, commit `store/images/`, push `main`, then `pnpm greasyfork:sync chesscom-lichess-export` (updates listing additional info from GitHub).
 
