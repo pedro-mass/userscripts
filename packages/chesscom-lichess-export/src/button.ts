@@ -138,15 +138,21 @@ function injectStyles(): void {
       flex-shrink: 0;
     }
     .cc2l-share-btn {
-      margin-top: 0;
-      margin-bottom: 12px;
+      margin: 0;
       padding: 12px 16px;
       font-size: 16px;
     }
-    .share-menu-tab-pgn-component .cc2l-share-btn,
-    .share-menu-content .cc2l-share-btn {
-      margin-top: 0;
-      margin-bottom: 12px;
+    .cc2l-share-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 0 !important;
+      padding-top: 0 !important;
+    }
+    .cc2l-share-actions .cc2l-share-btn,
+    .cc2l-share-actions > .cc-button-primary,
+    .cc2l-share-actions > button {
+      margin: 0 !important;
     }
     .cc2l-share-btn svg {
       width: 20px;
@@ -243,7 +249,11 @@ export function isShareModalOpen(): boolean {
 }
 
 export function removeShareModalButton(): void {
-  document.getElementById(SHARE_MODAL_SELECTORS.injectId)?.remove();
+  const btn = document.getElementById(SHARE_MODAL_SELECTORS.injectId);
+  if (!btn) return;
+  const parent = btn.parentElement;
+  btn.remove();
+  parent?.classList.remove('cc2l-share-actions');
 }
 
 export function injectShareModalButton(onClick: () => void): void {
@@ -261,7 +271,9 @@ export function injectShareModalButton(onClick: () => void): void {
   btn.addEventListener('click', onClick);
 
   injectStyles();
-  downloadBtn.parentElement.insertBefore(btn, downloadBtn);
+  const actions = downloadBtn.parentElement;
+  actions.classList.add('cc2l-share-actions');
+  actions.insertBefore(btn, downloadBtn);
 }
 
 export function setShareModalButtonState(state: ButtonState): void {
