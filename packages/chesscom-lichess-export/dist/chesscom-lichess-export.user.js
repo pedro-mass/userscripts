@@ -24,7 +24,7 @@
 // ==/UserScript==
 
 
-System.register("./__entry.js", ['./__monkey.entry-BUUrPRPc.js'], (function (exports, module) {
+System.register("./__entry.js", ['./__monkey.entry-BcuJWoKe.js'], (function (exports, module) {
 	'use strict';
 	return {
 		setters: [null],
@@ -36,7 +36,7 @@ System.register("./__entry.js", ['./__monkey.entry-BUUrPRPc.js'], (function (exp
 	};
 }));
 
-System.register("./__monkey.entry-BUUrPRPc.js", [], (function (exports, module) {
+System.register("./__monkey.entry-BcuJWoKe.js", [], (function (exports, module) {
   'use strict';
   return {
     execute: (function () {
@@ -170,17 +170,23 @@ System.register("./__monkey.entry-BUUrPRPc.js", [], (function (exports, module) 
           }
         }
       };
-      setPlatform(userscriptPlatform);
-      void __vitePreload(async () => {
-        const { startApp } = await module.import('./app-ueU-t7-_-D9mn_OOo.js');
-        return { startApp };
-      }, void 0 ).then(({ startApp }) => startApp());
+      if (document.documentElement.dataset.cc2lExtension) {
+        console.warn(
+          "[cc2l] Extension active on this page; userscript will not run."
+        );
+      } else {
+        setPlatform(userscriptPlatform);
+        void __vitePreload(async () => {
+          const { startApp } = await module.import('./app-BOsnGaYC-Dl_EvEi7.js');
+          return { startApp };
+        }, void 0 ).then(({ startApp }) => startApp());
+      }
 
     })
   };
 }));
 
-System.register("./app-ueU-t7-_-D9mn_OOo.js", ['./__monkey.entry-BUUrPRPc.js'], (function (exports, module) {
+System.register("./app-BOsnGaYC-Dl_EvEi7.js", ['./__monkey.entry-BcuJWoKe.js'], (function (exports, module) {
   'use strict';
   var getPlatform;
   return {
@@ -613,12 +619,6 @@ System.register("./app-ueU-t7-_-D9mn_OOo.js", ['./__monkey.entry-BUUrPRPc.js'], 
       }
       function startApp() {
         if (pollInterval) return;
-        if (document.documentElement.dataset.cc2lExtension) {
-          console.warn(
-            "[cc2l] Extension active on this page; userscript will not run."
-          );
-          return;
-        }
         pollInterval = setInterval(() => {
           tickMainButton();
           tickShareModalButton();

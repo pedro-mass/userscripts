@@ -70,13 +70,6 @@ function tickShareModalButton(): void {
 export function startApp(): void {
   if (pollInterval) return;
 
-  if (document.documentElement.dataset.cc2lExtension) {
-    console.warn(
-      '[cc2l] Extension active on this page; userscript will not run.',
-    );
-    return;
-  }
-
   pollInterval = setInterval(() => {
     tickMainButton();
     tickShareModalButton();
