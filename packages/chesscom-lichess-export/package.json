@@ -1,7 +1,7 @@
 {
   "name": "@userscripts/chesscom-lichess-export",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.13",
   "type": "module",
   "scripts": {
     "dev": "vite",
