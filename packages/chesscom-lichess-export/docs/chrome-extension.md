@@ -61,6 +61,8 @@ pnpm dev:extension:chesscom            # watch + warm-reload on open chess.com t
 
 Load unpacked: `packages/chesscom-lichess-export/dist/extension/` in `chrome://extensions`.
 
+Requires Chromium **110+** (module content scripts). After manifest changes, click **Reload** on the extension card.
+
 Dev warm-reload: service worker polls `build-meta.json`; on rebuild, open chess.com tabs re-import `app.js` without a full page refresh.
 
 - `manifest.json`: `content_scripts` on `https://www.chess.com/*`, `https://chess.com/*`

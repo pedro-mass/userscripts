@@ -21,7 +21,14 @@
     {
       "matches": ["https://www.chess.com/*", "https://chess.com/*"],
       "js": ["content-script.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "type": "module"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["app.js", "chunks/*", "build-meta.json"],
+      "matches": ["https://www.chess.com/*", "https://chess.com/*"]
     }
   ]
 }
