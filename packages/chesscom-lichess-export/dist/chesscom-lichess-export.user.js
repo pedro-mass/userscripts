@@ -24,7 +24,7 @@
 // ==/UserScript==
 
 
-System.register("./__entry.js", ['./__monkey.entry-Cjifd9nm.js'], (function (exports, module) {
+System.register("./__entry.js", ['./__monkey.entry-DeXIilVr.js'], (function (exports, module) {
 	'use strict';
 	return {
 		setters: [null],
@@ -36,7 +36,7 @@ System.register("./__entry.js", ['./__monkey.entry-Cjifd9nm.js'], (function (exp
 	};
 }));
 
-System.register("./__monkey.entry-Cjifd9nm.js", [], (function (exports, module) {
+System.register("./__monkey.entry-DeXIilVr.js", [], (function (exports, module) {
   'use strict';
   return {
     execute: (function () {
@@ -178,7 +178,7 @@ System.register("./__monkey.entry-Cjifd9nm.js", [], (function (exports, module) 
       } else {
         setPlatform(userscriptPlatform);
         void __vitePreload(async () => {
-          const { startApp } = await module.import('./app-CcDwD6g2-Ssh1DXSz.js');
+          const { startApp } = await module.import('./app-D1QEnbGa-CU8TT_7b.js');
           return { startApp };
         }, void 0 ).then(({ startApp }) => startApp());
       }
@@ -187,7 +187,7 @@ System.register("./__monkey.entry-Cjifd9nm.js", [], (function (exports, module) 
   };
 }));
 
-System.register("./app-CcDwD6g2-Ssh1DXSz.js", ['./__monkey.entry-Cjifd9nm.js'], (function (exports, module) {
+System.register("./app-D1QEnbGa-CU8TT_7b.js", ['./__monkey.entry-DeXIilVr.js'], (function (exports, module) {
   'use strict';
   var getPlatform;
   return {
@@ -541,14 +541,14 @@ System.register("./app-CcDwD6g2-Ssh1DXSz.js", ['./__monkey.entry-Cjifd9nm.js'], 
       flex-shrink: 0;
     }
     .cc2l-share-btn {
-      margin-top: 12px;
+      margin-top: 0;
       margin-bottom: 12px;
       padding: 12px 16px;
       font-size: 16px;
     }
     .share-menu-tab-pgn-component .cc2l-share-btn,
     .share-menu-content .cc2l-share-btn {
-      margin-top: 12px;
+      margin-top: 0;
       margin-bottom: 12px;
     }
     .cc2l-share-btn svg {
