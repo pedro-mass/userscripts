@@ -7,7 +7,7 @@ const RAW_BASE =
 export default defineConfig({
   plugins: [
     monkey({
-      entry: 'src/main.ts',
+      entry: 'src/entry-userscript.ts',
       userscript: {
         name: 'Chess.com → Lichess Export',
         version: '1.0.1',

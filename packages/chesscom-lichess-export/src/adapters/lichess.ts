@@ -1,4 +1,4 @@
-import { GM_xmlhttpRequest } from '$';
+import { getPlatform } from '../platform/context';
 
 interface LichessImportResponse {
   id: string;
@@ -6,29 +6,19 @@ interface LichessImportResponse {
 }
 
 export function importPgn(pgn: string): Promise<LichessImportResponse> {
-  return new Promise((resolve, reject) => {
-    GM_xmlhttpRequest({
-      method: 'POST',
-      url: 'https://lichess.org/api/import',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json',
-      },
-      data: `pgn=${encodeURIComponent(pgn)}`,
-      onload(response: { status: number; responseText: string }) {
-        if (response.status !== 200) {
-          reject(new Error(`Lichess API returned ${response.status}`));
-          return;
-        }
-        try {
-          resolve(JSON.parse(response.responseText) as LichessImportResponse);
-        } catch {
-          reject(new Error('Failed to parse Lichess response'));
-        }
-      },
-      onerror() {
-        reject(new Error('Network error contacting Lichess'));
-      },
+  return getPlatform()
+    .http.postForm('https://lichess.org/api/import', `pgn=${encodeURIComponent(pgn)}`, {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json',
+    })
+    .then((response) => {
+      if (response.status !== 200) {
+        throw new Error(`Lichess API returned ${response.status}`);
+      }
+      try {
+        return JSON.parse(response.responseText) as LichessImportResponse;
+      } catch {
+        throw new Error('Failed to parse Lichess response');
+      }
     });
-  });
 }

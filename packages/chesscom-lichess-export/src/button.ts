@@ -191,3 +191,13 @@ export function setShareModalButtonState(state: ButtonState): void {
   btn.innerHTML = state === 'idle' ? SHARE_IDLE : BUTTON_CONTENT[state];
   btn.disabled = state === 'loading';
 }
+
+/** Tear down injected UI for dev warm-reload or cleanup. */
+export function cleanupButtons(): void {
+  document
+    .querySelectorAll('.cc2l-btn, .cc2l-share-btn')
+    .forEach((el) => el.remove());
+  document
+    .querySelectorAll<HTMLStyleElement>('style[id^="cc2l_"][id$="_style"]')
+    .forEach((el) => el.remove());
+}

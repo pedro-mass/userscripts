@@ -12,6 +12,9 @@
 // @updateURL    https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesscom-lichess-export/dist/chesscom-lichess-export.meta.js
 // @match        https://www.chess.com/*
 // @match        https://chess.com/*
+// @require      https://cdn.jsdelivr.net/npm/systemjs@6.15.1/dist/system.min.js
+// @require      https://cdn.jsdelivr.net/npm/systemjs@6.15.1/dist/extras/named-register.min.js
+// @require      data:application/javascript,%3B(typeof%20System!%3D'undefined')%26%26(System%3Dnew%20System.constructor())%3B
 // @connect      lichess.org
 // @grant        GM_getValue
 // @grant        GM_openInTab

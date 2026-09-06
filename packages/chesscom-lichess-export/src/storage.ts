@@ -1,6 +1,6 @@
-import { GM_getValue, GM_setValue } from '$';
+import { getPlatform } from './platform/context';
 
-const STORAGE_KEY = 'cc2l_game_map';
+export const STORAGE_KEY = 'cc2l_game_map';
 
 type GameMap = Record<string, string>;
 
@@ -16,7 +16,7 @@ export function extractGameId(
 
 function getGameMap(): GameMap {
   try {
-    const raw = GM_getValue<string>(STORAGE_KEY, '{}');
+    const raw = getPlatform().storage.get(STORAGE_KEY, '{}');
     return JSON.parse(raw) as GameMap;
   } catch {
     return {};
@@ -30,5 +30,5 @@ export function getStoredLichessUrl(gameId: string): string | null {
 export function saveLichessUrl(gameId: string, lichessUrl: string): void {
   const map = getGameMap();
   map[gameId] = lichessUrl;
-  GM_setValue(STORAGE_KEY, JSON.stringify(map));
+  getPlatform().storage.set(STORAGE_KEY, JSON.stringify(map));
 }

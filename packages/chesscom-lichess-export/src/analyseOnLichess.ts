@@ -1,5 +1,5 @@
-import { GM_openInTab } from '$';
 import { importPgn } from './adapters/lichess';
+import { getPlatform } from './platform/context';
 import { resolvePgn } from './adapters/pgn';
 import { extractGameId, getStoredLichessUrl, saveLichessUrl } from './storage';
 
@@ -9,7 +9,7 @@ export async function analyseOnLichess(): Promise<void> {
   if (gameId) {
     const cachedUrl = getStoredLichessUrl(gameId);
     if (cachedUrl) {
-      GM_openInTab(cachedUrl, { active: true, insert: true });
+      getPlatform().tabs.open(cachedUrl, true);
       return;
     }
   }
@@ -25,5 +25,5 @@ export async function analyseOnLichess(): Promise<void> {
     saveLichessUrl(gameId, result.url);
   }
 
-  GM_openInTab(result.url, { active: true, insert: true });
+  getPlatform().tabs.open(result.url, true);
 }
