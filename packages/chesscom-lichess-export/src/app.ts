@@ -4,6 +4,8 @@ import {
   injectMainButton,
   injectShareModalButton,
   isMainButtonInjected,
+  isShareModalOpen,
+  removeShareModalButton,
   setMainButtonState,
   setShareModalButtonState,
   type ButtonState,
@@ -11,7 +13,6 @@ import {
 import {
   ABORTED_GAME_SELECTORS,
   GAME_PATH_FRAGMENTS,
-  SHARE_MODAL_SELECTORS,
 } from './config';
 import { extractGameId, getStoredLichessUrl } from './storage';
 
@@ -60,7 +61,11 @@ function tickMainButton(): void {
 
 function tickShareModalButton(): void {
   if (!isOnGamePage()) return;
-  if (!document.querySelector(SHARE_MODAL_SELECTORS.modal)) return;
+
+  if (!isShareModalOpen()) {
+    removeShareModalButton();
+    return;
+  }
 
   injectShareModalButton(() => {
     void runExport(setShareModalButtonState);

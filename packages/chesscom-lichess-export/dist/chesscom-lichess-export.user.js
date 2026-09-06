@@ -24,7 +24,7 @@
 // ==/UserScript==
 
 
-System.register("./__entry.js", ['./__monkey.entry-BcuJWoKe.js'], (function (exports, module) {
+System.register("./__entry.js", ['./__monkey.entry-DtvhJzbY.js'], (function (exports, module) {
 	'use strict';
 	return {
 		setters: [null],
@@ -36,7 +36,7 @@ System.register("./__entry.js", ['./__monkey.entry-BcuJWoKe.js'], (function (exp
 	};
 }));
 
-System.register("./__monkey.entry-BcuJWoKe.js", [], (function (exports, module) {
+System.register("./__monkey.entry-DtvhJzbY.js", [], (function (exports, module) {
   'use strict';
   return {
     execute: (function () {
@@ -177,7 +177,7 @@ System.register("./__monkey.entry-BcuJWoKe.js", [], (function (exports, module) 
       } else {
         setPlatform(userscriptPlatform);
         void __vitePreload(async () => {
-          const { startApp } = await module.import('./app-BOsnGaYC-Dl_EvEi7.js');
+          const { startApp } = await module.import('./app-Ddqqj6QO-B6fvmhk_.js');
           return { startApp };
         }, void 0 ).then(({ startApp }) => startApp());
       }
@@ -186,7 +186,7 @@ System.register("./__monkey.entry-BcuJWoKe.js", [], (function (exports, module) 
   };
 }));
 
-System.register("./app-BOsnGaYC-Dl_EvEi7.js", ['./__monkey.entry-BcuJWoKe.js'], (function (exports, module) {
+System.register("./app-Ddqqj6QO-B6fvmhk_.js", ['./__monkey.entry-DtvhJzbY.js'], (function (exports, module) {
   'use strict';
   var getPlatform;
   return {
@@ -226,7 +226,7 @@ System.register("./app-BOsnGaYC-Dl_EvEi7.js", ['./__monkey.entry-BcuJWoKe.js'], 
         ".game-review-buttons-component"
       ];
       const SHARE_MODAL_SELECTORS = {
-        modal: '[data-cy="share-menu-modal"], [role="dialog"][class*="share"], #share-modal',
+        modal: '[data-cy="share-menu-modal"], #share-modal',
         injectId: "cc2l-share-export-btn"
       };
       const PGN_SELECTORS = {
@@ -549,12 +549,31 @@ System.register("./app-BOsnGaYC-Dl_EvEi7.js", ['./__monkey.entry-BcuJWoKe.js'], 
   `;
         document.head.appendChild(style);
       }
+      function isShareModalOpen() {
+        const modal = document.querySelector(SHARE_MODAL_SELECTORS.modal);
+        if (!modal) return false;
+        const style = getComputedStyle(modal);
+        if (style.display === "none" || style.visibility === "hidden") return false;
+        const rect = modal.getBoundingClientRect();
+        if (rect.width < 8 || rect.height < 8) return false;
+        const hasDownload = Array.from(modal.querySelectorAll("button")).some(
+          (btn) => /download/i.test(btn.textContent ?? "")
+        );
+        const hasPgnUi = modal.querySelector(PGN_SELECTORS.textarea) !== null || modal.querySelector(PGN_SELECTORS.pgnTab) !== null;
+        return hasDownload || hasPgnUi;
+      }
+      function removeShareModalButton() {
+        var _a;
+        (_a = document.getElementById(SHARE_MODAL_SELECTORS.injectId)) == null ? void 0 : _a.remove();
+      }
       function injectShareModalButton(onClick) {
+        if (!isShareModalOpen()) return;
         const modal = document.querySelector(SHARE_MODAL_SELECTORS.modal);
         if (!modal || modal.querySelector(`#${SHARE_MODAL_SELECTORS.injectId}`)) return;
         const downloadBtn = Array.from(modal.querySelectorAll("button")).find(
           (btn2) => /download/i.test(btn2.textContent ?? "")
         );
+        if (!(downloadBtn == null ? void 0 : downloadBtn.parentElement)) return;
         const btn = document.createElement("button");
         btn.id = SHARE_MODAL_SELECTORS.injectId;
         btn.type = "button";
@@ -562,11 +581,7 @@ System.register("./app-BOsnGaYC-Dl_EvEi7.js", ['./__monkey.entry-BcuJWoKe.js'], 
         btn.innerHTML = SHARE_IDLE;
         btn.addEventListener("click", onClick);
         injectStyles();
-        if (downloadBtn == null ? void 0 : downloadBtn.parentElement) {
-          downloadBtn.parentElement.insertBefore(btn, downloadBtn);
-        } else {
-          modal.appendChild(btn);
-        }
+        downloadBtn.parentElement.insertBefore(btn, downloadBtn);
       }
       function setShareModalButtonState(state) {
         const btn = document.getElementById(
@@ -612,7 +627,10 @@ System.register("./app-BOsnGaYC-Dl_EvEi7.js", ['./__monkey.entry-BcuJWoKe.js'], 
       }
       function tickShareModalButton() {
         if (!isOnGamePage()) return;
-        if (!document.querySelector(SHARE_MODAL_SELECTORS.modal)) return;
+        if (!isShareModalOpen()) {
+          removeShareModalButton();
+          return;
+        }
         injectShareModalButton(() => {
           void runExport(setShareModalButtonState);
         });

@@ -16,8 +16,7 @@ export const BUTTON_ANCHOR_SELECTORS = [
 ];
 
 export const SHARE_MODAL_SELECTORS = {
-  modal:
-    '[data-cy="share-menu-modal"], [role="dialog"][class*="share"], #share-modal',
+  modal: '[data-cy="share-menu-modal"], #share-modal',
   downloadBtn: 'button',
   injectId: 'cc2l-share-export-btn',
 } as const;

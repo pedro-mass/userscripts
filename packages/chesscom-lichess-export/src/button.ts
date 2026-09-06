@@ -1,6 +1,7 @@
 import lichessLogoSvg from './assets/lichess-logo.svg?raw';
 import {
   BUTTON_ANCHOR_SELECTORS,
+  PGN_SELECTORS,
   SHARE_MODAL_SELECTORS,
   WIN_MODAL_TEXT,
 } from './config';
@@ -159,13 +160,40 @@ function injectStyles(): void {
   document.head.appendChild(style);
 }
 
+export function isShareModalOpen(): boolean {
+  const modal = document.querySelector<HTMLElement>(SHARE_MODAL_SELECTORS.modal);
+  if (!modal) return false;
+
+  const style = getComputedStyle(modal);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+
+  const rect = modal.getBoundingClientRect();
+  if (rect.width < 8 || rect.height < 8) return false;
+
+  const hasDownload = Array.from(modal.querySelectorAll('button')).some((btn) =>
+    /download/i.test(btn.textContent ?? ''),
+  );
+  const hasPgnUi =
+    modal.querySelector(PGN_SELECTORS.textarea) !== null ||
+    modal.querySelector(PGN_SELECTORS.pgnTab) !== null;
+
+  return hasDownload || hasPgnUi;
+}
+
+export function removeShareModalButton(): void {
+  document.getElementById(SHARE_MODAL_SELECTORS.injectId)?.remove();
+}
+
 export function injectShareModalButton(onClick: () => void): void {
+  if (!isShareModalOpen()) return;
+
   const modal = document.querySelector<HTMLElement>(SHARE_MODAL_SELECTORS.modal);
   if (!modal || modal.querySelector(`#${SHARE_MODAL_SELECTORS.injectId}`)) return;
 
   const downloadBtn = Array.from(modal.querySelectorAll('button')).find((btn) =>
     /download/i.test(btn.textContent ?? ''),
   );
+  if (!downloadBtn?.parentElement) return;
 
   const btn = document.createElement('button');
   btn.id = SHARE_MODAL_SELECTORS.injectId;
@@ -175,12 +203,7 @@ export function injectShareModalButton(onClick: () => void): void {
   btn.addEventListener('click', onClick);
 
   injectStyles();
-
-  if (downloadBtn?.parentElement) {
-    downloadBtn.parentElement.insertBefore(btn, downloadBtn);
-  } else {
-    modal.appendChild(btn);
-  }
+  downloadBtn.parentElement.insertBefore(btn, downloadBtn);
 }
 
 export function setShareModalButtonState(state: ButtonState): void {
