@@ -1,0 +1,45 @@
+=== TITLE (45 max) ===
+Chess.com → Lichess Export
+
+=== SUMMARY (132 max) ===
+One-click PGN export from Chess.com to Lichess for analysis
+
+=== DESCRIPTION ===
+One-click PGN export from Chess.com to Lichess.
+
+Adds Analyse on Lichess on finished games (game-over modal and Game Review sidebar) and Export to Lichess in the Share dialog. Imports via the public Lichess API and opens the game in a new tab.
+
+Features:
+- One-click export (no manual PGN copy)
+- Per-game cache (re-open skips re-import)
+- Works on live, daily, and analysis review pages
+
+Open source (GPL-3.0-only):
+https://github.com/pedro-mass/userscripts/tree/main/packages/chesscom-lichess-export
+
+=== HOMEPAGE URL ===
+https://github.com/pedro-mass/userscripts/tree/main/packages/chesscom-lichess-export
+
+=== SUPPORT URL ===
+https://github.com/pedro-mass/userscripts/issues
+
+=== PRIVACY POLICY URL ===
+https://github.com/pedro-mass/userscripts/blob/main/packages/chesscom-lichess-export/PRIVACY.md
+
+=== SINGLE PURPOSE ===
+Export Chess.com games to Lichess for analysis when the user clicks an export button.
+
+=== PERMISSION: storage ===
+Stores a local mapping of Chess.com game IDs to Lichess URLs on the user's device so re-open skips re-import. Data stays in chrome.storage.local and is not sent to the developer.
+
+=== PERMISSION: https://www.chess.com/* ===
+Injects export buttons on Chess.com pages and reads PGN from the page when the user requests export. The content script runs only on chess.com URLs.
+
+=== PERMISSION: https://chess.com/* ===
+Same as www.chess.com: inject export UI and read PGN on chess.com pages the user visits.
+
+=== PERMISSION: https://lichess.org/* ===
+POSTs PGN to the Lichess public import API when the user clicks export or analyse, then opens the imported game on Lichess.
+
+=== DATA DISCLOSURE (if form asks about page content) ===
+The extension reads PGN text from the Chess.com page the user is viewing and sends it to Lichess only when the user clicks Analyse on Lichess or Export to Lichess. No data is sent to the extension developer.

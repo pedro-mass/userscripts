@@ -1,5 +1,8 @@
 # Chrome Web Store listing copy
 
+**Full walkthrough (paste blocks):** [cws-submission.md](./cws-submission.md)  
+**Quick paste file:** [cws-paste.txt](./cws-paste.txt)
+
 Use after uploading `dist/chesscom-lichess-export-extension-<version>.zip`.
 
 ## Package
