@@ -138,15 +138,15 @@ function injectStyles(): void {
       flex-shrink: 0;
     }
     .cc2l-share-btn {
-      margin-top: 16px;
+      margin-top: 12px;
       margin-bottom: 12px;
       padding: 12px 16px;
       font-size: 16px;
     }
     .share-menu-tab-pgn-component .cc2l-share-btn,
     .share-menu-content .cc2l-share-btn {
-      margin-top: 20px;
-      margin-bottom: 16px;
+      margin-top: 12px;
+      margin-bottom: 12px;
     }
     .cc2l-share-btn svg {
       width: 20px;
