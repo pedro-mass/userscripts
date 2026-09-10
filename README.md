@@ -2,7 +2,7 @@
 
 Personal browser userscripts (Tampermonkey / Violentmonkey), built as a pnpm monorepo.
 
-**Actively maintained:** [LiveChart.me minimum rating filter](packages/live-chart-filter/) and [Chess.com → Lichess export](packages/chesscom-lichess-export/). Other packages are archived in-repo and no longer supported.
+**Actively maintained:** [LiveChart.me minimum rating filter](packages/live-chart-filter/), [Chess.com → Lichess export](packages/chesscom-lichess-export/), and [Cursor spending pace](packages/cursor-spend-pace/). Other packages are archived in-repo and no longer supported.
 
 ## Layout
 
@@ -10,6 +10,7 @@ Personal browser userscripts (Tampermonkey / Violentmonkey), built as a pnpm mon
 packages/
   live-chart-filter/          # maintained
   chesscom-lichess-export/    # maintained
+  cursor-spend-pace/          # maintained
   shared/                     # shared DOM helpers
   lichess-stats/       # archived (unsupported)
   udemy-section-time/  # archived (unsupported)
@@ -23,6 +24,7 @@ legacy/                # pre-monorepo flat sources
 pnpm install
 pnpm build              # live-chart-filter
 pnpm build:chesscom     # chess.com → lichess
+pnpm build:cursor-pace # cursor.com spending pace
 ```
 
 | Package | Install |
@@ -40,6 +42,7 @@ Dev: `pnpm dev` (LiveChart) · `pnpm dev:chesscom`
 | --- | --- | --- | --- |
 | `live-chart-filter` | livechart.me | [547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) | `dist/live-chart-filter.user.js` |
 | `chesscom-lichess-export` | chess.com | [594491](https://greasyfork.org/en/scripts/594491-chess-com-lichess-export) | `dist/chesscom-lichess-export.user.js` |
+| `cursor-spend-pace` | cursor.com | (unpublished) | `dist/cursor-spend-pace.user.js` |
 
 ## Archived (unsupported)
 
