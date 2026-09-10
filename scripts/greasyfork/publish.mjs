@@ -198,8 +198,9 @@ async function cmdPublish(packageName, flags) {
   await assertSignedIn(page);
 
   await page.goto(`${GF}/script_versions/new`);
-  await page.fill('#library-name', header.name);
-  await page.fill('#library-description', header.description);
+  // Public user scripts take @name/@description from the userscript header in code.
+  // #library-name and #library-description are only shown for script type "Library".
+  await page.check('#script_script_type_1');
   await page.fill('#script_version_code', code);
 
   if (additionalInfo) {

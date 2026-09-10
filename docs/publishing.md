@@ -91,7 +91,8 @@ If the listing still points at a repo-root `.user.js` file:
 | --- | --- |
 | **Package** | `packages/cursor-spend-pace/` |
 | **Sync URL** | `https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/cursor-spend-pace/dist/cursor-spend-pace.user.js` |
-| **First publish** | `pnpm greasyfork:publish cursor-spend-pace --build --write-script-id` |
+| **Listing** | [595283 - Cursor Spending Pace](https://greasyfork.org/en/scripts/595283-cursor-spending-pace) |
+| **First publish** | `pnpm greasyfork:publish cursor-spend-pace --build --write-script-id` (done) |
 
 ### Release workflow
 
