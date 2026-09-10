@@ -31,6 +31,7 @@ pnpm build:cursor-pace # cursor.com spending pace
 | --- | --- |
 | LiveChart filter | [Greasy Fork 547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) or `packages/live-chart-filter/dist/live-chart-filter.user.js` |
 | Chess.com → Lichess | [Greasy Fork 594491](https://greasyfork.org/en/scripts/594491-chess-com-lichess-export) or `packages/chesscom-lichess-export/dist/chesscom-lichess-export.user.js` |
+| Cursor spending pace | Greasy Fork (after publish) or `packages/cursor-spend-pace/dist/cursor-spend-pace.user.js` |
 
 Dev: `pnpm dev` (LiveChart) · `pnpm dev:chesscom`
 
@@ -42,7 +43,7 @@ Dev: `pnpm dev` (LiveChart) · `pnpm dev:chesscom`
 | --- | --- | --- | --- |
 | `live-chart-filter` | livechart.me | [547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) | `dist/live-chart-filter.user.js` |
 | `chesscom-lichess-export` | chess.com | [594491](https://greasyfork.org/en/scripts/594491-chess-com-lichess-export) | `dist/chesscom-lichess-export.user.js` |
-| `cursor-spend-pace` | cursor.com | (unpublished) | `dist/cursor-spend-pace.user.js` |
+| `cursor-spend-pace` | cursor.com | (see Greasy Fork after publish) | `dist/cursor-spend-pace.user.js` |
 
 ## Archived (unsupported)
 

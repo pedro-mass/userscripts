@@ -1,6 +1,6 @@
 # Publishing userscripts
 
-**Active scripts:** [live-chart-filter](../packages/live-chart-filter/) (LiveChart.me) and [chesscom-lichess-export](../packages/chesscom-lichess-export/) (Chess.com → Lichess).
+**Active scripts:** [live-chart-filter](../packages/live-chart-filter/) (LiveChart.me), [chesscom-lichess-export](../packages/chesscom-lichess-export/) (Chess.com → Lichess), and [cursor-spend-pace](../packages/cursor-spend-pace/) (Cursor spending dashboard).
 
 ## Greasy Fork CLI (repeatable)
 
@@ -84,6 +84,21 @@ If the listing still points at a repo-root `.user.js` file:
 3. `pnpm build:chesscom`, commit `dist/`, push to `main`.
 4. `pnpm greasyfork:sync chesscom-lichess-export` (or webhook / daily poll).
 5. Tampermonkey updates from Greasy Fork on the next check.
+
+## Cursor spending pace (cursor-spend-pace)
+
+| | |
+| --- | --- |
+| **Package** | `packages/cursor-spend-pace/` |
+| **Sync URL** | `https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/cursor-spend-pace/dist/cursor-spend-pace.user.js` |
+| **First publish** | `pnpm greasyfork:publish cursor-spend-pace --build --write-script-id` |
+
+### Release workflow
+
+1. Edit `packages/cursor-spend-pace/src/`.
+2. Bump `version` in `vite.config.ts` and `package.json`.
+3. `pnpm build:cursor-pace`, commit `dist/`, push to `main`.
+4. `pnpm greasyfork:sync cursor-spend-pace` after push.
 
 ## Release workflow (live-chart-filter)
 

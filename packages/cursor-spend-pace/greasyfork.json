@@ -1,3 +1,4 @@
 {
-  "distFile": "cursor-spend-pace.user.js"
+  "distFile": "cursor-spend-pace.user.js",
+  "additionalInfo": "greasyfork.additional-info.md"
 }
