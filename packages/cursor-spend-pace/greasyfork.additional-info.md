@@ -2,6 +2,12 @@ Linear-burn pace markers for the Cursor spending dashboard.
 
 Shows where your usage **should** be on each included meter if you spread it evenly across the billing window. Helps answer: am I ahead or behind for the month (or week for Grok)?
 
+### Screenshots
+
+![Cursor spending pace on the dashboard (light theme)](https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/cursor-spend-pace/store/images/spending-light.png)
+
+![Cursor spending pace on the dashboard (dark theme)](https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/cursor-spend-pace/store/images/spending-dark.png)
+
 ### What you get
 
 - **Cursor Models** and **Other Models**: monthly billing pace
