@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Cursor Spending Pace
 // @namespace    https://github.com/pedro-mass/userscripts/cursor-spend-pace
-// @version      0.1.1
+// @version      0.1.2
 // @author       pedro-mass
 // @description  Shows linear-burn pace markers on the Cursor spending dashboard so you can see if usage is ahead or behind the billing cycle
 // @license      GNU GPLv3
@@ -297,47 +297,131 @@
   const MARKER_CLASS = "pm-pace-marker";
   const LABEL_CLASS = "pm-pace-label";
   const META_CLASS = "pm-pace-meta";
-  const COLOR_AHEAD = "#ca8a04";
-  const COLOR_UNDER = "#16a34a";
-  const COLOR_ON = "#64748b";
-  const COLOR_MARKER = "#0f172a";
-  const COLOR_ACCENT = "#0284c7";
-  function ensureStyle() {
-    if (document.getElementById(STYLE_ID)) return;
-    const style = document.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = `
-    .${WRAP_CLASS} { position: relative; overflow: visible; }
-    .${WRAP_CLASS} .${MARKER_CLASS} {
+  function paceTone(status) {
+    const delta = status.deltaPct;
+    if (delta == null) return "neutral";
+    if (status.usedPct >= 100) return "ahead";
+    if (delta > 0.5) return "ahead";
+    if (delta < -0.5) return "under";
+    return "on";
+  }
+  function paceStylesheet() {
+    const w = WRAP_CLASS;
+    const m = MARKER_CLASS;
+    const l = LABEL_CLASS;
+    const meta = META_CLASS;
+    return `
+    :root {
+      --pm-pace-under: #166534;
+      --pm-pace-ahead: #b45309;
+      --pm-pace-on: #475569;
+      --pm-pace-neutral: #64748b;
+      --pm-pace-accent: #0369a1;
+      --pm-pace-marker: #0369a1;
+      --pm-pace-marker-ring: #ffffff;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --pm-pace-under: #4ade80;
+        --pm-pace-ahead: #fbbf24;
+        --pm-pace-on: #cbd5e1;
+        --pm-pace-neutral: #94a3b8;
+        --pm-pace-accent: #38bdf8;
+        --pm-pace-marker: #e2e8f0;
+        --pm-pace-marker-ring: #0f172a;
+      }
+    }
+
+    html.dark,
+    html[data-theme='dark'],
+    body.dark,
+    [data-theme='dark'] {
+      --pm-pace-under: #4ade80;
+      --pm-pace-ahead: #fbbf24;
+      --pm-pace-on: #cbd5e1;
+      --pm-pace-neutral: #94a3b8;
+      --pm-pace-accent: #38bdf8;
+      --pm-pace-marker: #e2e8f0;
+      --pm-pace-marker-ring: #0f172a;
+    }
+
+    html.light,
+    html[data-theme='light'],
+    body.light,
+    [data-theme='light'] {
+      --pm-pace-under: #166534;
+      --pm-pace-ahead: #b45309;
+      --pm-pace-on: #475569;
+      --pm-pace-neutral: #64748b;
+      --pm-pace-accent: #0369a1;
+      --pm-pace-marker: #0369a1;
+      --pm-pace-marker-ring: #ffffff;
+    }
+
+    @media (prefers-contrast: more) {
+      :root {
+        --pm-pace-under: #14532d;
+        --pm-pace-ahead: #92400e;
+        --pm-pace-accent: #075985;
+        --pm-pace-marker: #075985;
+      }
+      html.dark,
+      html[data-theme='dark'],
+      body.dark,
+      [data-theme='dark'] {
+        --pm-pace-under: #86efac;
+        --pm-pace-ahead: #fde047;
+        --pm-pace-accent: #7dd3fc;
+        --pm-pace-marker: #f8fafc;
+      }
+    }
+
+    .${w} { position: relative; overflow: visible; }
+    .${w} .${m} {
       position: absolute;
       top: -4px;
       height: calc(100% + 4px);
-      width: 2px;
-      margin-left: -1px;
-      background: ${COLOR_MARKER};
-      box-shadow: 0 0 0 1px #fff, 0 0 0 2px ${COLOR_ACCENT};
+      width: 3px;
+      margin-left: -1.5px;
+      background: var(--pm-pace-marker);
+      box-shadow: 0 0 0 1px var(--pm-pace-marker-ring), 0 0 0 2px var(--pm-pace-accent);
       border-radius: 1px;
       z-index: 3;
       pointer-events: none;
     }
-    .${WRAP_CLASS} .${LABEL_CLASS} {
+    .${w} .${l} {
       position: absolute;
       top: calc(100% + 6px);
       z-index: 3;
       pointer-events: none;
       font: 11px/1.2 ui-sans-serif, system-ui, sans-serif;
       font-weight: 600;
-      color: ${COLOR_ACCENT};
+      color: var(--pm-pace-accent);
       white-space: nowrap;
       transform: translateX(-50%);
     }
-    .${META_CLASS} {
+    .${meta} {
       margin-top: 22px;
       font: 11px/1.35 ui-sans-serif, system-ui, sans-serif;
-      color: ${COLOR_ON};
+      font-weight: 600;
+      color: var(--pm-pace-neutral);
     }
+    .${meta}[data-pm-tone='under'] { color: var(--pm-pace-under); }
+    .${meta}[data-pm-tone='ahead'] { color: var(--pm-pace-ahead); }
+    .${meta}[data-pm-tone='on'] { color: var(--pm-pace-on); }
+    .${meta}[data-pm-tone='neutral'] { color: var(--pm-pace-neutral); }
   `;
-    (document.head ?? document.documentElement).appendChild(style);
+  }
+  function ensureStyle() {
+    let style = document.getElementById(STYLE_ID);
+    if (!style) {
+      style = document.createElement("style");
+      style.id = STYLE_ID;
+      (document.head ?? document.documentElement).appendChild(style);
+    }
+    const css = paceStylesheet();
+    if (style.textContent !== css) style.textContent = css;
   }
   function wrapTrack(track) {
     const parent = track.parentElement;
@@ -348,14 +432,6 @@
     wrap.appendChild(track);
     return wrap;
   }
-  function statusColor(status) {
-    const delta = status.deltaPct;
-    if (delta == null) return COLOR_ON;
-    if (status.usedPct >= 100) return COLOR_AHEAD;
-    if (delta > 0.5) return COLOR_AHEAD;
-    if (delta < -0.5) return COLOR_UNDER;
-    return COLOR_ON;
-  }
   function applyPace(track, status, cadence = "monthly") {
     var _a, _b;
     ensureStyle();
@@ -364,11 +440,13 @@
     const wrap = wrapTrack(track);
     const elapsed = status.elapsedPct;
     const showPace = elapsed != null && status.usedPct < 100;
+    const tone = paceTone(status);
     const signature = [
       status.usedPct.toFixed(4),
       elapsed == null ? "" : elapsed.toFixed(4),
       statusLabel(status, cadence),
-      cadence
+      cadence,
+      tone
     ].join("|");
     if (wrap.dataset.pmSig === signature) return;
     wrap.dataset.pmSig = signature;
@@ -379,18 +457,20 @@
     if (showPace && elapsed != null) {
       const marker = document.createElement("div");
       marker.className = MARKER_CLASS;
+      marker.setAttribute("aria-hidden", "true");
       marker.style.left = `${elapsed}%`;
       marker.title = cadence === "weekly" ? "Even linear burn for this weekly window" : "Even linear burn for this billing window";
       wrap.appendChild(marker);
       const label = document.createElement("div");
       label.className = LABEL_CLASS;
+      label.setAttribute("aria-hidden", "true");
       label.style.left = `${elapsed}%`;
       label.textContent = cadence === "weekly" ? `weekly pace ${formatPercent(elapsed)}` : `pace ${formatPercent(elapsed)}`;
       wrap.appendChild(label);
     }
     const meta = document.createElement("div");
     meta.className = META_CLASS;
-    meta.style.color = statusColor(status);
+    meta.dataset.pmTone = tone;
     meta.textContent = statusLabel(status, cadence);
     wrap.after(meta);
     const domUsed = parseUsedFromFill(fill);

@@ -1,55 +1,25 @@
 import type { PaceCadence, PaceStatus } from './pacing';
 import { formatPercent, statusLabel } from './pacing';
 import { findFill, parseUsedFromFill } from './dom';
-
-const STYLE_ID = 'pm-cursor-pace-style';
-const WRAP_CLASS = 'pm-pace-wrap';
-const MARKER_CLASS = 'pm-pace-marker';
-const LABEL_CLASS = 'pm-pace-label';
-const META_CLASS = 'pm-pace-meta';
-
-const COLOR_AHEAD = '#ca8a04';
-const COLOR_UNDER = '#16a34a';
-const COLOR_ON = '#64748b';
-const COLOR_MARKER = '#0f172a';
-const COLOR_ACCENT = '#0284c7';
+import {
+  LABEL_CLASS,
+  MARKER_CLASS,
+  META_CLASS,
+  paceStylesheet,
+  paceTone,
+  STYLE_ID,
+  WRAP_CLASS,
+} from './theme';
 
 function ensureStyle(): void {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = `
-    .${WRAP_CLASS} { position: relative; overflow: visible; }
-    .${WRAP_CLASS} .${MARKER_CLASS} {
-      position: absolute;
-      top: -4px;
-      height: calc(100% + 4px);
-      width: 2px;
-      margin-left: -1px;
-      background: ${COLOR_MARKER};
-      box-shadow: 0 0 0 1px #fff, 0 0 0 2px ${COLOR_ACCENT};
-      border-radius: 1px;
-      z-index: 3;
-      pointer-events: none;
-    }
-    .${WRAP_CLASS} .${LABEL_CLASS} {
-      position: absolute;
-      top: calc(100% + 6px);
-      z-index: 3;
-      pointer-events: none;
-      font: 11px/1.2 ui-sans-serif, system-ui, sans-serif;
-      font-weight: 600;
-      color: ${COLOR_ACCENT};
-      white-space: nowrap;
-      transform: translateX(-50%);
-    }
-    .${META_CLASS} {
-      margin-top: 22px;
-      font: 11px/1.35 ui-sans-serif, system-ui, sans-serif;
-      color: ${COLOR_ON};
-    }
-  `;
-  (document.head ?? document.documentElement).appendChild(style);
+  let style = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
+  if (!style) {
+    style = document.createElement('style');
+    style.id = STYLE_ID;
+    (document.head ?? document.documentElement).appendChild(style);
+  }
+  const css = paceStylesheet();
+  if (style.textContent !== css) style.textContent = css;
 }
 
 function wrapTrack(track: HTMLElement): HTMLElement {
@@ -60,15 +30,6 @@ function wrapTrack(track: HTMLElement): HTMLElement {
   track.before(wrap);
   wrap.appendChild(track);
   return wrap;
-}
-
-function statusColor(status: PaceStatus): string {
-  const delta = status.deltaPct;
-  if (delta == null) return COLOR_ON;
-  if (status.usedPct >= 100) return COLOR_AHEAD;
-  if (delta > 0.5) return COLOR_AHEAD;
-  if (delta < -0.5) return COLOR_UNDER;
-  return COLOR_ON;
 }
 
 export function applyPace(
@@ -83,11 +44,13 @@ export function applyPace(
   const wrap = wrapTrack(track);
   const elapsed = status.elapsedPct;
   const showPace = elapsed != null && status.usedPct < 100;
+  const tone = paceTone(status);
   const signature = [
     status.usedPct.toFixed(4),
     elapsed == null ? '' : elapsed.toFixed(4),
     statusLabel(status, cadence),
     cadence,
+    tone,
   ].join('|');
 
   if (wrap.dataset.pmSig === signature) return;
@@ -101,6 +64,7 @@ export function applyPace(
   if (showPace && elapsed != null) {
     const marker = document.createElement('div');
     marker.className = MARKER_CLASS;
+    marker.setAttribute('aria-hidden', 'true');
     marker.style.left = `${elapsed}%`;
     marker.title =
       cadence === 'weekly'
@@ -110,6 +74,7 @@ export function applyPace(
 
     const label = document.createElement('div');
     label.className = LABEL_CLASS;
+    label.setAttribute('aria-hidden', 'true');
     label.style.left = `${elapsed}%`;
     label.textContent =
       cadence === 'weekly'
@@ -120,7 +85,7 @@ export function applyPace(
 
   const meta = document.createElement('div');
   meta.className = META_CLASS;
-  meta.style.color = statusColor(status);
+  meta.dataset.pmTone = tone;
   meta.textContent = statusLabel(status, cadence);
   wrap.after(meta);
 

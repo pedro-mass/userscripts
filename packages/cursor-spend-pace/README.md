@@ -10,6 +10,7 @@ Shows a **pace marker** on each included usage bar so you can see whether you ar
 - Monthly pools: **Cursor Models** and **Other Models**
 - Weekly pool: **Grok Bot** weekly usage (separate 7-day window, labeled `weekly pace`)
 - Injects a vertical pace line, label, and short status (`under pace`, `ahead of pace`, `on pace`)
+- Theme-aware colors for Cursor light/dark (`html.dark`, `data-theme`, `prefers-color-scheme`) with WCAG-oriented contrast
 
 ## Install (local)
 
