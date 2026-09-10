@@ -85,18 +85,21 @@ export function restToEvenPaceMs(usedPct: number, elapsedPct: number, windowMs: 
   return (windowMs * (usedPct - elapsedPct)) / 100;
 }
 
-export function statusLabel(status: PaceStatus): string {
+export type PaceCadence = 'monthly' | 'weekly';
+
+export function statusLabel(status: PaceStatus, cadence: PaceCadence = 'monthly'): string {
   const { usedPct, elapsedPct, deltaPct, windowMs } = status;
-  if (elapsedPct == null || deltaPct == null) return 'billing window unavailable';
+  const scope = cadence === 'weekly' ? 'weekly ' : '';
+  if (elapsedPct == null || deltaPct == null) return `${scope}billing window unavailable`;
   if (usedPct >= 100) return 'quota exhausted';
   if (deltaPct > 0.5) {
     const rest = formatRestMs(restToEvenPaceMs(usedPct, elapsedPct, windowMs));
-    return `ahead of pace · rest ${rest} to even`;
+    return `ahead of ${scope}pace · rest ${rest} to even`;
   }
   if (deltaPct < -0.5) {
-    return `under pace · ${formatPercent(Math.abs(deltaPct))} headroom`;
+    return `under ${scope}pace · ${formatPercent(Math.abs(deltaPct))} headroom`;
   }
-  return 'on pace';
+  return cadence === 'weekly' ? 'on weekly pace' : 'on pace';
 }
 
 /** Dev-only self-check: `node -e "..."` or import in REPL. */

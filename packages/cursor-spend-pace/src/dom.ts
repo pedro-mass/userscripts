@@ -102,8 +102,21 @@ export function monthlyTracks(): HTMLElement[] {
 }
 
 export function grokTracks(): HTMLElement[] {
-  const section = document.getElementById('grok-bot');
-  return uniqueTracks(tracksIn(sectionRoot(section)));
+  const byId = document.getElementById('grok-bot');
+  const fromSection = uniqueTracks(tracksIn(sectionRoot(byId)));
+  if (fromSection.length) return fromSection;
+
+  const fromLabels = uniqueTracks(
+    Array.from(document.querySelectorAll<HTMLElement>(TRACK_SELECTOR)).filter(
+      (track) => trackKind(track) === 'grok',
+    ),
+  );
+  if (fromLabels.length) return fromLabels;
+
+  const grokHeading = Array.from(document.querySelectorAll<HTMLElement>('h1,h2,h3,h4,button')).find(
+    (el) => /Grok Bot/i.test(el.textContent ?? ''),
+  );
+  return uniqueTracks(tracksIn(sectionRoot(grokHeading ?? null)));
 }
 
 export function hasUsageTracks(): boolean {

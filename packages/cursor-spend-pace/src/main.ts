@@ -1,5 +1,13 @@
 import { loadUsageSnapshot, type UsageSnapshot } from './api';
-import { grokTracks, hasUsageTracks, isSpendingPage, monthlyTracks, trackKind } from './dom';
+import {
+  findFill,
+  grokTracks,
+  hasUsageTracks,
+  isSpendingPage,
+  monthlyTracks,
+  parseUsedFromFill,
+  trackKind,
+} from './dom';
 import { paceStatus } from './pacing';
 import { applyPace, clearPaceDecorations } from './render';
 
@@ -148,10 +156,13 @@ function render(): void {
       applyPace(track, status);
     });
 
-    if (snapshot.grok.enabled && snapshot.grok.window) {
+    const grokWindow = snapshot.grok.window;
+    const grokUsedPct = snapshot.grok.usedPct;
+    if (grokWindow) {
       grokTracks().forEach((track) => {
-        const status = paceStatus(usedPctForKind('grok'), snapshot!.grok.window!, now);
-        applyPace(track, status);
+        const used = grokUsedPct ?? parseUsedFromFill(findFill(track)) ?? 0;
+        const status = paceStatus(used, grokWindow, now);
+        applyPace(track, status, 'weekly');
       });
     }
   } finally {

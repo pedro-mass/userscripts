@@ -8,7 +8,7 @@ Shows a **pace marker** on each included usage bar so you can see whether you ar
 
 - Reads billing dates and usage from Cursor's same-origin APIs (session cookies only; no third-party calls)
 - Monthly pools: **Cursor Models** and **Other Models**
-- Weekly pool: **Grok Bot** (separate window)
+- Weekly pool: **Grok Bot** weekly usage (separate 7-day window, labeled `weekly pace`)
 - Injects a vertical pace line, label, and short status (`under pace`, `ahead of pace`, `on pace`)
 
 ## Install (local)

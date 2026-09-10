@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Cursor Spending Pace
 // @namespace    https://github.com/pedro-mass/userscripts/cursor-spend-pace
-// @version      0.1.0
+// @version      0.1.1
 // @author       pedro-mass
 // @description  Shows linear-burn pace markers on the Cursor spending dashboard so you can see if usage is ahead or behind the billing cycle
 // @license      GNU GPLv3
@@ -75,18 +75,19 @@
     if (usedPct <= elapsedPct || windowMs <= 0) return 0;
     return windowMs * (usedPct - elapsedPct) / 100;
   }
-  function statusLabel(status) {
+  function statusLabel(status, cadence = "monthly") {
     const { usedPct, elapsedPct, deltaPct, windowMs } = status;
-    if (elapsedPct == null || deltaPct == null) return "billing window unavailable";
+    const scope = cadence === "weekly" ? "weekly " : "";
+    if (elapsedPct == null || deltaPct == null) return `${scope}billing window unavailable`;
     if (usedPct >= 100) return "quota exhausted";
     if (deltaPct > 0.5) {
       const rest = formatRestMs(restToEvenPaceMs(usedPct, elapsedPct, windowMs));
-      return `ahead of pace · rest ${rest} to even`;
+      return `ahead of ${scope}pace · rest ${rest} to even`;
     }
     if (deltaPct < -0.5) {
-      return `under pace · ${formatPercent(Math.abs(deltaPct))} headroom`;
+      return `under ${scope}pace · ${formatPercent(Math.abs(deltaPct))} headroom`;
     }
-    return "on pace";
+    return cadence === "weekly" ? "on weekly pace" : "on pace";
   }
   const JSON_HEADERS = { "content-type": "application/json" };
   async function loadJson(url, init) {
@@ -101,6 +102,42 @@
       body: JSON.stringify(body)
     });
   }
+  const GROK_START_KEYS = [
+    "currentPeriodStart",
+    "current_period_start",
+    "periodStart",
+    "period_start",
+    "windowStart",
+    "window_start"
+  ];
+  const GROK_END_KEYS = [
+    "nextResetTimestampUtc",
+    "next_reset_timestamp_utc",
+    "nextResetAt",
+    "next_reset_at",
+    "resetAt",
+    "reset_at",
+    "periodEnd",
+    "period_end",
+    "windowEnd",
+    "window_end"
+  ];
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1e3;
+  function pickNested(obj, keys, depth = 0) {
+    if (obj == null || depth > 4) return null;
+    if (typeof obj !== "object") return null;
+    const record = obj;
+    for (const key of keys) {
+      if (record[key] != null && record[key] !== "") return record[key];
+    }
+    for (const value of Object.values(record)) {
+      if (value && typeof value === "object") {
+        const found = pickNested(value, keys, depth + 1);
+        if (found != null && found !== "") return found;
+      }
+    }
+    return null;
+  }
   function billingWindow(summary, period) {
     const startMs = parseTime(summary == null ? void 0 : summary.billingCycleStart) || parseTime(period == null ? void 0 : period.billingCycleStart);
     const endMs = parseTime(summary == null ? void 0 : summary.billingCycleEnd) || parseTime(period == null ? void 0 : period.billingCycleEnd);
@@ -111,12 +148,18 @@
   }
   function grokWindow(grok) {
     if (!grok) return null;
-    const startMs = parseTime(grok.currentPeriodStart ?? grok.current_period_start);
-    const endMs = parseTime(grok.nextResetTimestampUtc ?? grok.next_reset_timestamp_utc);
-    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
-      return null;
+    const startMs = parseTime(pickNested(grok, GROK_START_KEYS));
+    const endMs = parseTime(pickNested(grok, GROK_END_KEYS));
+    if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs) {
+      return { startMs, endMs };
     }
-    return { startMs, endMs };
+    if (Number.isFinite(endMs)) {
+      return { startMs: endMs - WEEK_MS, endMs };
+    }
+    if (Number.isFinite(startMs)) {
+      return { startMs, endMs: startMs + WEEK_MS };
+    }
+    return null;
   }
   async function loadUsageSnapshot() {
     var _a;
@@ -132,17 +175,15 @@
     const usage = period == null ? void 0 : period.planUsage;
     const cursorUsedPct = pickNumber(plan, ["autoPercentUsed", "auto_percent_used"]) ?? pickNumber(usage, ["autoPercentUsed", "auto_percent_used"]);
     const otherUsedPct = pickNumber(plan, ["apiPercentUsed", "api_percent_used"]) ?? pickNumber(usage, ["apiPercentUsed", "api_percent_used"]);
-    const grokEnabled = Boolean(
-      (grok == null ? void 0 : grok.hasNonZeroIncludedLimit) ?? (grok == null ? void 0 : grok.has_non_zero_included_limit) ?? grok
-    );
+    const grokUsedRaw = pickNested(grok, ["usagePercent", "usage_percent"]);
+    const grokUsed = Number(grokUsedRaw);
     return {
       monthlyWindow: billingWindow(summary, period),
       cursorUsedPct,
       otherUsedPct,
       grok: {
         window: grokWindow(grok),
-        usedPct: pickNumber(grok, ["usagePercent", "usage_percent"]),
-        enabled: grokEnabled
+        usedPct: Number.isFinite(grokUsed) ? grokUsed : null
       }
     };
   }
@@ -227,8 +268,19 @@
     );
   }
   function grokTracks() {
-    const section = document.getElementById("grok-bot");
-    return uniqueTracks(tracksIn(sectionRoot(section)));
+    const byId = document.getElementById("grok-bot");
+    const fromSection = uniqueTracks(tracksIn(sectionRoot(byId)));
+    if (fromSection.length) return fromSection;
+    const fromLabels = uniqueTracks(
+      Array.from(document.querySelectorAll(TRACK_SELECTOR)).filter(
+        (track) => trackKind(track) === "grok"
+      )
+    );
+    if (fromLabels.length) return fromLabels;
+    const grokHeading = Array.from(document.querySelectorAll("h1,h2,h3,h4,button")).find(
+      (el) => /Grok Bot/i.test(el.textContent ?? "")
+    );
+    return uniqueTracks(tracksIn(sectionRoot(grokHeading ?? null)));
   }
   function hasUsageTracks() {
     return monthlyTracks().length > 0 || grokTracks().length > 0;
@@ -304,7 +356,7 @@
     if (delta < -0.5) return COLOR_UNDER;
     return COLOR_ON;
   }
-  function applyPace(track, status) {
+  function applyPace(track, status, cadence = "monthly") {
     var _a, _b;
     ensureStyle();
     const fill = findFill(track);
@@ -315,7 +367,8 @@
     const signature = [
       status.usedPct.toFixed(4),
       elapsed == null ? "" : elapsed.toFixed(4),
-      statusLabel(status)
+      statusLabel(status, cadence),
+      cadence
     ].join("|");
     if (wrap.dataset.pmSig === signature) return;
     wrap.dataset.pmSig = signature;
@@ -327,18 +380,18 @@
       const marker = document.createElement("div");
       marker.className = MARKER_CLASS;
       marker.style.left = `${elapsed}%`;
-      marker.title = "Even linear burn for this billing window";
+      marker.title = cadence === "weekly" ? "Even linear burn for this weekly window" : "Even linear burn for this billing window";
       wrap.appendChild(marker);
       const label = document.createElement("div");
       label.className = LABEL_CLASS;
       label.style.left = `${elapsed}%`;
-      label.textContent = `pace ${formatPercent(elapsed)}`;
+      label.textContent = cadence === "weekly" ? `weekly pace ${formatPercent(elapsed)}` : `pace ${formatPercent(elapsed)}`;
       wrap.appendChild(label);
     }
     const meta = document.createElement("div");
     meta.className = META_CLASS;
     meta.style.color = statusColor(status);
-    meta.textContent = statusLabel(status);
+    meta.textContent = statusLabel(status, cadence);
     wrap.after(meta);
     const domUsed = parseUsedFromFill(fill);
     if (domUsed != null && Math.abs(domUsed - status.usedPct) > 0.5) {
@@ -482,10 +535,13 @@
         const status = paceStatus(usedPctForKind(kind), monthlyWindow, now);
         applyPace(track, status);
       });
-      if (snapshot.grok.enabled && snapshot.grok.window) {
+      const grokWindow2 = snapshot.grok.window;
+      const grokUsedPct = snapshot.grok.usedPct;
+      if (grokWindow2) {
         grokTracks().forEach((track) => {
-          const status = paceStatus(usedPctForKind("grok"), snapshot.grok.window, now);
-          applyPace(track, status);
+          const used = grokUsedPct ?? parseUsedFromFill(findFill(track)) ?? 0;
+          const status = paceStatus(used, grokWindow2, now);
+          applyPace(track, status, "weekly");
         });
       }
     } finally {

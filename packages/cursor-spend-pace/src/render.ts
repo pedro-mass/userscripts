@@ -1,4 +1,4 @@
-import type { PaceStatus } from './pacing';
+import type { PaceCadence, PaceStatus } from './pacing';
 import { formatPercent, statusLabel } from './pacing';
 import { findFill, parseUsedFromFill } from './dom';
 
@@ -71,7 +71,11 @@ function statusColor(status: PaceStatus): string {
   return COLOR_ON;
 }
 
-export function applyPace(track: HTMLElement, status: PaceStatus): void {
+export function applyPace(
+  track: HTMLElement,
+  status: PaceStatus,
+  cadence: PaceCadence = 'monthly',
+): void {
   ensureStyle();
   const fill = findFill(track);
   if (!fill) return;
@@ -82,7 +86,8 @@ export function applyPace(track: HTMLElement, status: PaceStatus): void {
   const signature = [
     status.usedPct.toFixed(4),
     elapsed == null ? '' : elapsed.toFixed(4),
-    statusLabel(status),
+    statusLabel(status, cadence),
+    cadence,
   ].join('|');
 
   if (wrap.dataset.pmSig === signature) return;
@@ -97,20 +102,26 @@ export function applyPace(track: HTMLElement, status: PaceStatus): void {
     const marker = document.createElement('div');
     marker.className = MARKER_CLASS;
     marker.style.left = `${elapsed}%`;
-    marker.title = 'Even linear burn for this billing window';
+    marker.title =
+      cadence === 'weekly'
+        ? 'Even linear burn for this weekly window'
+        : 'Even linear burn for this billing window';
     wrap.appendChild(marker);
 
     const label = document.createElement('div');
     label.className = LABEL_CLASS;
     label.style.left = `${elapsed}%`;
-    label.textContent = `pace ${formatPercent(elapsed)}`;
+    label.textContent =
+      cadence === 'weekly'
+        ? `weekly pace ${formatPercent(elapsed)}`
+        : `pace ${formatPercent(elapsed)}`;
     wrap.appendChild(label);
   }
 
   const meta = document.createElement('div');
   meta.className = META_CLASS;
   meta.style.color = statusColor(status);
-  meta.textContent = statusLabel(status);
+  meta.textContent = statusLabel(status, cadence);
   wrap.after(meta);
 
   const domUsed = parseUsedFromFill(fill);

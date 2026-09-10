@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Cursor Spending Pace
 // @namespace    https://github.com/pedro-mass/userscripts/cursor-spend-pace
-// @version      0.1.0
+// @version      0.1.1
 // @author       pedro-mass
 // @description  Shows linear-burn pace markers on the Cursor spending dashboard so you can see if usage is ahead or behind the billing cycle
 // @license      GNU GPLv3

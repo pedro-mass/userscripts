@@ -23,7 +23,6 @@ export type UsageSnapshot = {
   grok: {
     window: TimeWindow | null;
     usedPct: number | null;
-    enabled: boolean;
   };
 };
 
@@ -41,16 +40,47 @@ type PeriodUsage = {
   planUsage?: Record<string, unknown>;
 };
 
-type GrokUsage = {
-  currentPeriodStart?: string | number;
-  current_period_start?: string | number;
-  nextResetTimestampUtc?: string | number;
-  next_reset_timestamp_utc?: string | number;
-  usagePercent?: number;
-  usage_percent?: number;
-  hasNonZeroIncludedLimit?: boolean;
-  has_non_zero_included_limit?: boolean;
-};
+type GrokUsage = Record<string, unknown>;
+
+const GROK_START_KEYS = [
+  'currentPeriodStart',
+  'current_period_start',
+  'periodStart',
+  'period_start',
+  'windowStart',
+  'window_start',
+];
+
+const GROK_END_KEYS = [
+  'nextResetTimestampUtc',
+  'next_reset_timestamp_utc',
+  'nextResetAt',
+  'next_reset_at',
+  'resetAt',
+  'reset_at',
+  'periodEnd',
+  'period_end',
+  'windowEnd',
+  'window_end',
+];
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function pickNested(obj: unknown, keys: string[], depth = 0): unknown {
+  if (obj == null || depth > 4) return null;
+  if (typeof obj !== 'object') return null;
+  const record = obj as Record<string, unknown>;
+  for (const key of keys) {
+    if (record[key] != null && record[key] !== '') return record[key];
+  }
+  for (const value of Object.values(record)) {
+    if (value && typeof value === 'object') {
+      const found = pickNested(value, keys, depth + 1);
+      if (found != null && found !== '') return found;
+    }
+  }
+  return null;
+}
 
 function billingWindow(summary: UsageSummary | null, period: PeriodUsage | null): TimeWindow | null {
   const startMs =
@@ -64,12 +94,18 @@ function billingWindow(summary: UsageSummary | null, period: PeriodUsage | null)
 
 function grokWindow(grok: GrokUsage | null): TimeWindow | null {
   if (!grok) return null;
-  const startMs = parseTime(grok.currentPeriodStart ?? grok.current_period_start);
-  const endMs = parseTime(grok.nextResetTimestampUtc ?? grok.next_reset_timestamp_utc);
-  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
-    return null;
+  const startMs = parseTime(pickNested(grok, GROK_START_KEYS));
+  const endMs = parseTime(pickNested(grok, GROK_END_KEYS));
+  if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs) {
+    return { startMs, endMs };
   }
-  return { startMs, endMs };
+  if (Number.isFinite(endMs)) {
+    return { startMs: endMs - WEEK_MS, endMs };
+  }
+  if (Number.isFinite(startMs)) {
+    return { startMs, endMs: startMs + WEEK_MS };
+  }
+  return null;
 }
 
 export async function loadUsageSnapshot(): Promise<UsageSnapshot> {
@@ -94,9 +130,8 @@ export async function loadUsageSnapshot(): Promise<UsageSnapshot> {
     pickNumber(plan, ['apiPercentUsed', 'api_percent_used']) ??
     pickNumber(usage, ['apiPercentUsed', 'api_percent_used']);
 
-  const grokEnabled = Boolean(
-    grok?.hasNonZeroIncludedLimit ?? grok?.has_non_zero_included_limit ?? grok,
-  );
+  const grokUsedRaw = pickNested(grok, ['usagePercent', 'usage_percent']);
+  const grokUsed = Number(grokUsedRaw);
 
   return {
     monthlyWindow: billingWindow(summary, period),
@@ -104,8 +139,7 @@ export async function loadUsageSnapshot(): Promise<UsageSnapshot> {
     otherUsedPct,
     grok: {
       window: grokWindow(grok),
-      usedPct: pickNumber(grok, ['usagePercent', 'usage_percent']),
-      enabled: grokEnabled,
+      usedPct: Number.isFinite(grokUsed) ? grokUsed : null,
     },
   };
 }
