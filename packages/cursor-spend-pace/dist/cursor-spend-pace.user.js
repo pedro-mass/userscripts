@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Cursor Spending Pace
 // @namespace    https://github.com/pedro-mass/userscripts/cursor-spend-pace
-// @version      0.1.2
+// @version      0.2.0
 // @author       pedro-mass
 // @description  Shows linear-burn pace markers on the Cursor spending dashboard so you can see if usage is ahead or behind the billing cycle
 // @license      GNU GPLv3
@@ -161,6 +161,26 @@
     }
     return null;
   }
+  function overallUsedPct(summary) {
+    var _a;
+    const overall = (_a = summary == null ? void 0 : summary.individualUsage) == null ? void 0 : _a.overall;
+    if (!overall) return null;
+    const used = Number(overall.used);
+    const limit = Number(overall.limit);
+    if (!Number.isFinite(used) || !Number.isFinite(limit) || limit <= 0) return null;
+    return used / limit * 100;
+  }
+  function detectPlatformId(summary) {
+    var _a;
+    if (!summary) return "pro-included";
+    const limitType = String(summary.limitType ?? "").toLowerCase();
+    const membership = String(summary.membershipType ?? "").toLowerCase();
+    if (limitType === "team" || membership === "enterprise") return "enterprise-team";
+    if (overallUsedPct(summary) != null && !((_a = summary.individualUsage) == null ? void 0 : _a.plan)) {
+      return "enterprise-team";
+    }
+    return "pro-included";
+  }
   async function loadUsageSnapshot() {
     var _a;
     const [summaryResult, periodResult, grokResult] = await Promise.allSettled([
@@ -171,6 +191,7 @@
     const summary = summaryResult.status === "fulfilled" ? summaryResult.value : null;
     const period = periodResult.status === "fulfilled" ? periodResult.value : null;
     const grok = grokResult.status === "fulfilled" ? grokResult.value : null;
+    const platform = detectPlatformId(summary);
     const plan = (_a = summary == null ? void 0 : summary.individualUsage) == null ? void 0 : _a.plan;
     const usage = period == null ? void 0 : period.planUsage;
     const cursorUsedPct = pickNumber(plan, ["autoPercentUsed", "auto_percent_used"]) ?? pickNumber(usage, ["autoPercentUsed", "auto_percent_used"]);
@@ -178,17 +199,23 @@
     const grokUsedRaw = pickNested(grok, ["usagePercent", "usage_percent"]);
     const grokUsed = Number(grokUsedRaw);
     return {
+      platform,
       monthlyWindow: billingWindow(summary, period),
-      cursorUsedPct,
-      otherUsedPct,
+      pro: {
+        cursorUsedPct,
+        otherUsedPct
+      },
+      enterprise: {
+        overallUsedPct: overallUsedPct(summary)
+      },
       grok: {
         window: grokWindow(grok),
         usedPct: Number.isFinite(grokUsed) ? grokUsed : null
       }
     };
   }
-  const TRACK_SELECTOR = ".relative.w-full.overflow-hidden.rounded-full";
   const FILL_SELECTOR = ".absolute.inset-y-0.left-0";
+  const PRO_TRACK_SELECTOR = ".relative.w-full.overflow-hidden.rounded-full";
   function isSpendingPage() {
     const path = dashboardPath();
     if (path === "/dashboard/spending" || path.startsWith("/dashboard/spending/") || path === "/dashboard/usage" || path.startsWith("/dashboard/usage/")) {
@@ -204,19 +231,120 @@
     );
     return path;
   }
+  function findFill(track) {
+    return track.querySelector(FILL_SELECTOR) ?? track.querySelector('[style*="width"]');
+  }
+  function parseUsedFromFill(fill) {
+    const style = (fill == null ? void 0 : fill.getAttribute("style")) ?? "";
+    const match = style.match(/width:\s*([\d.]+)%/);
+    if (!match) return null;
+    const value = Number(match[1]);
+    return Number.isFinite(value) ? value : null;
+  }
+  function isUsageTrack(el) {
+    if (!(el instanceof HTMLElement)) return false;
+    if (!el.classList.contains("relative")) return false;
+    if (!el.classList.contains("w-full")) return false;
+    if (!el.classList.contains("overflow-hidden")) return false;
+    const fill = findFill(el);
+    if (!fill || parseUsedFromFill(fill) == null) return false;
+    if (el.classList.contains("rounded-full")) return true;
+    if (el.className.includes("color-dashboard-usage-accent")) return true;
+    return false;
+  }
+  function queryUsageTracks(root = document) {
+    const candidates = Array.from(root.querySelectorAll(".relative.w-full.overflow-hidden"));
+    return candidates.filter(isUsageTrack);
+  }
+  function uniqueTracks(tracks) {
+    const seen = /* @__PURE__ */ new Set();
+    return tracks.filter((track) => {
+      if (seen.has(track)) return false;
+      seen.add(track);
+      return true;
+    });
+  }
+  const TRACK_IN_WRAP_SELECTOR = '.relative.w-full.overflow-hidden.rounded-full, .relative.w-full.overflow-hidden[class*="color-dashboard-usage-accent"]';
+  const MONTHLY_LABEL = /Your monthly usage/i;
+  const DOLLAR_PAIR = /\$\s*[\d,.]+\s*\/\s*\$\s*[\d,.]+/;
+  function enterpriseUsageCard(track) {
+    let el = track;
+    for (let i = 0; i < 12 && el; i++) {
+      if (!(el instanceof HTMLElement)) break;
+      const text = el.textContent ?? "";
+      if (MONTHLY_LABEL.test(text) && DOLLAR_PAIR.test(text) && el.contains(track)) {
+        return el;
+      }
+      el = el.parentElement;
+    }
+    return null;
+  }
+  function findEnterpriseMonthlyTracks(doc = document) {
+    const cards = Array.from(doc.querySelectorAll("div")).filter((el) => {
+      const text = (el.textContent ?? "").replace(/\s+/g, " ");
+      if (!MONTHLY_LABEL.test(text) || !DOLLAR_PAIR.test(text)) return false;
+      return queryUsageTracks(el).length > 0;
+    });
+    if (cards.length) {
+      cards.sort((a, b) => {
+        var _a, _b;
+        return (((_a = a.textContent) == null ? void 0 : _a.length) ?? 0) - (((_b = b.textContent) == null ? void 0 : _b.length) ?? 0);
+      });
+      const tracks = uniqueTracks(queryUsageTracks(cards[0]));
+      if (tracks.length) return tracks;
+    }
+    return uniqueTracks(queryUsageTracks(doc).filter((track) => enterpriseUsageCard(track)));
+  }
+  function enterpriseTrackKind(_track, _index) {
+    return "team";
+  }
+  function enterpriseTracksVisible(doc = document) {
+    return findEnterpriseMonthlyTracks(doc).length > 0;
+  }
+  function parseEnterpriseDollars(card) {
+    const text = card.textContent ?? "";
+    const match = text.match(/\$\s*([\d,.]+)\s*\/\s*\$\s*([\d,.]+)/);
+    if (!match) return { usedPct: null };
+    const used = Number(match[1].replace(/,/g, ""));
+    const limit = Number(match[2].replace(/,/g, ""));
+    if (!Number.isFinite(used) || !Number.isFinite(limit) || limit <= 0) return { usedPct: null };
+    return { usedPct: used / limit * 100 };
+  }
+  function enterpriseUsedPctFromDom(track) {
+    const card = enterpriseUsageCard(track);
+    if (!card) return null;
+    return parseEnterpriseDollars(card).usedPct;
+  }
+  function enterpriseUsedPct(kind, snapshot2) {
+    var _a;
+    if (kind !== "team") return null;
+    return ((_a = snapshot2.enterprise) == null ? void 0 : _a.overallUsedPct) ?? null;
+  }
+  const enterpriseTeamAdapter = {
+    id: "enterprise-team",
+    findMonthlyTracks(doc = document) {
+      return findEnterpriseMonthlyTracks(doc);
+    },
+    trackKind(track, index) {
+      return enterpriseTrackKind();
+    },
+    usedPct(kind, snapshot2) {
+      return enterpriseUsedPct(kind, snapshot2);
+    }
+  };
   function sectionRoot(el) {
     if (!el) return null;
     return el.closest(".dashboard-section") ?? el.closest("section") ?? el.parentElement;
   }
   function tracksIn(section) {
     if (!section) return [];
-    const primary = Array.from(section.querySelectorAll(TRACK_SELECTOR));
+    const primary = Array.from(section.querySelectorAll(PRO_TRACK_SELECTOR));
     if (primary.length) return primary;
     return Array.from(section.querySelectorAll('[class*="rounded-full"]')).filter(
       (el) => Boolean(findFill(el))
     );
   }
-  function includedSectionRoots() {
+  function includedSectionRoots(doc) {
     const roots = [];
     const seen = /* @__PURE__ */ new Set();
     const add = (el) => {
@@ -225,13 +353,10 @@
       seen.add(root);
       roots.push(root);
     };
-    document.querySelectorAll("[id]").forEach((el) => {
+    doc.querySelectorAll("[id]").forEach((el) => {
       if (/^included-in-/i.test(el.id)) add(el);
     });
     return roots;
-  }
-  function findFill(track) {
-    return track.querySelector(FILL_SELECTOR) ?? track.querySelector('[style*="width"]');
   }
   function cardText(track) {
     let el = track;
@@ -243,7 +368,7 @@
     const card = track.closest(".px-4.py-3") ?? track.parentElement;
     return (card == null ? void 0 : card.textContent) ?? "";
   }
-  function trackKind(track, fallbackIndex) {
+  function proTrackKind(track, fallbackIndex) {
     const text = cardText(track);
     if (/Cursor Models/i.test(text)) return "cursor";
     if (/Other Models/i.test(text)) return "other";
@@ -252,45 +377,62 @@
     if (fallbackIndex === 1) return "other";
     return null;
   }
-  function uniqueTracks(tracks) {
-    const seen = /* @__PURE__ */ new Set();
-    return tracks.filter((track) => {
-      if (seen.has(track)) return false;
-      seen.add(track);
-      return true;
-    });
-  }
-  function monthlyTracks() {
-    const fromRoots = uniqueTracks(includedSectionRoots().flatMap((root) => tracksIn(root)));
+  function findProMonthlyTracks(doc = document) {
+    const fromRoots = uniqueTracks(includedSectionRoots(doc).flatMap((root) => tracksIn(root)));
     if (fromRoots.length) return fromRoots;
-    return uniqueTracks(Array.from(document.querySelectorAll(TRACK_SELECTOR))).filter(
-      (track) => trackKind(track) === "cursor" || trackKind(track) === "other"
+    return uniqueTracks(Array.from(doc.querySelectorAll(PRO_TRACK_SELECTOR))).filter(
+      (track) => {
+        const kind = proTrackKind(track);
+        return kind === "cursor" || kind === "other";
+      }
     );
   }
-  function grokTracks() {
-    const byId = document.getElementById("grok-bot");
+  function findGrokTracks(doc = document) {
+    const byId = doc.getElementById("grok-bot");
     const fromSection = uniqueTracks(tracksIn(sectionRoot(byId)));
     if (fromSection.length) return fromSection;
     const fromLabels = uniqueTracks(
-      Array.from(document.querySelectorAll(TRACK_SELECTOR)).filter(
-        (track) => trackKind(track) === "grok"
+      Array.from(doc.querySelectorAll(PRO_TRACK_SELECTOR)).filter(
+        (track) => proTrackKind(track) === "grok"
       )
     );
     if (fromLabels.length) return fromLabels;
-    const grokHeading = Array.from(document.querySelectorAll("h1,h2,h3,h4,button")).find(
+    const grokHeading = Array.from(doc.querySelectorAll("h1,h2,h3,h4,button")).find(
       (el) => /Grok Bot/i.test(el.textContent ?? "")
     );
     return uniqueTracks(tracksIn(sectionRoot(grokHeading ?? null)));
   }
-  function hasUsageTracks() {
-    return monthlyTracks().length > 0 || grokTracks().length > 0;
+  function proTracksVisible(doc = document) {
+    return findProMonthlyTracks(doc).length > 0 || includedSectionRoots(doc).length > 0;
   }
-  function parseUsedFromFill(fill) {
-    const style = (fill == null ? void 0 : fill.getAttribute("style")) ?? "";
-    const match = style.match(/width:\s*([\d.]+)%/);
-    if (!match) return null;
-    const value = Number(match[1]);
-    return Number.isFinite(value) ? value : null;
+  function proUsedPct(kind, snapshot2) {
+    var _a, _b;
+    if (kind === "team") return null;
+    if (kind === "cursor") return ((_a = snapshot2.pro) == null ? void 0 : _a.cursorUsedPct) ?? null;
+    if (kind === "other") return ((_b = snapshot2.pro) == null ? void 0 : _b.otherUsedPct) ?? null;
+    return null;
+  }
+  const proIncludedAdapter = {
+    id: "pro-included",
+    findMonthlyTracks(doc = document) {
+      return findProMonthlyTracks(doc);
+    },
+    trackKind(track, index) {
+      const kind = proTrackKind(track, index);
+      if (kind === "cursor" || kind === "other") return kind;
+      return null;
+    },
+    usedPct(kind, snapshot2) {
+      return proUsedPct(kind, snapshot2);
+    }
+  };
+  function detectPlatform(snapshot2, doc = document) {
+    if ((snapshot2 == null ? void 0 : snapshot2.platform) === "enterprise-team") return enterpriseTeamAdapter;
+    if ((snapshot2 == null ? void 0 : snapshot2.platform) === "pro-included") return proIncludedAdapter;
+    if (enterpriseTracksVisible(doc) && !proTracksVisible(doc)) return enterpriseTeamAdapter;
+    if (proTracksVisible(doc)) return proIncludedAdapter;
+    if (enterpriseTracksVisible(doc)) return enterpriseTeamAdapter;
+    return proIncludedAdapter;
   }
   const STYLE_ID = "pm-cursor-pace-style";
   const WRAP_CLASS = "pm-pace-wrap";
@@ -489,7 +631,7 @@
     });
     document.querySelectorAll(`.${META_CLASS}`).forEach((el) => el.remove());
   }
-  const TRACK_IN_WRAP = '.relative.w-full.overflow-hidden.rounded-full, [class*="rounded-full"]';
+  const TRACK_IN_WRAP = TRACK_IN_WRAP_SELECTOR;
   const LOG_PREFIX = "[cursor-spend-pace]";
   let snapshot = null;
   let refreshing = false;
@@ -593,11 +735,19 @@
       }
     }
   }
-  function usedPctForKind(kind) {
-    if (!snapshot) return 0;
-    if (kind === "cursor") return snapshot.cursorUsedPct ?? 0;
-    if (kind === "other") return snapshot.otherUsedPct ?? 0;
-    return snapshot.grok.usedPct ?? 0;
+  function hasUsageTracks() {
+    if (!snapshot) return false;
+    const adapter = detectPlatform(snapshot);
+    return adapter.findMonthlyTracks().length > 0 || findGrokTracks().length > 0;
+  }
+  function resolveUsedPct(adapter, track, kind) {
+    const fromApi = adapter.usedPct(kind, snapshot);
+    if (fromApi != null) return fromApi;
+    if (adapter.id === "enterprise-team") {
+      const fromDom = enterpriseUsedPctFromDom(track);
+      if (fromDom != null) return fromDom;
+    }
+    return parseUsedFromFill(findFill(track)) ?? 0;
   }
   function render() {
     if (!isSpendingPage() || !snapshot || applying) {
@@ -607,18 +757,19 @@
     applying = true;
     try {
       const now = Date.now();
+      const adapter = detectPlatform(snapshot);
       const monthlyWindow = snapshot.monthlyWindow;
-      monthlyTracks().forEach((track, index) => {
-        const kind = trackKind(track, index);
-        if (kind !== "cursor" && kind !== "other") return;
-        if (!monthlyWindow) return;
-        const status = paceStatus(usedPctForKind(kind), monthlyWindow, now);
+      adapter.findMonthlyTracks().forEach((track, index) => {
+        const kind = adapter.trackKind(track, index);
+        if (!kind || !monthlyWindow) return;
+        const used = resolveUsedPct(adapter, track, kind);
+        const status = paceStatus(used, monthlyWindow, now);
         applyPace(track, status);
       });
       const grokWindow2 = snapshot.grok.window;
       const grokUsedPct = snapshot.grok.usedPct;
       if (grokWindow2) {
-        grokTracks().forEach((track) => {
+        findGrokTracks().forEach((track) => {
           const used = grokUsedPct ?? parseUsedFromFill(findFill(track)) ?? 0;
           const status = paceStatus(used, grokWindow2, now);
           applyPace(track, status, "weekly");

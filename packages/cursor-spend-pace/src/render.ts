@@ -1,6 +1,6 @@
 import type { PaceCadence, PaceStatus } from './pacing';
 import { formatPercent, statusLabel } from './pacing';
-import { findFill, parseUsedFromFill } from './dom';
+import { findFill, parseUsedFromFill, TRACK_IN_WRAP_SELECTOR } from './dom/shared';
 import {
   LABEL_CLASS,
   MARKER_CLASS,
@@ -109,4 +109,4 @@ export function clearPaceDecorations(): void {
   document.querySelectorAll(`.${META_CLASS}`).forEach((el) => el.remove());
 }
 
-const TRACK_IN_WRAP = '.relative.w-full.overflow-hidden.rounded-full, [class*="rounded-full"]';
+const TRACK_IN_WRAP = TRACK_IN_WRAP_SELECTOR;

@@ -10,7 +10,7 @@ export default defineConfig({
       entry: 'src/main.ts',
       userscript: {
         name: 'Cursor Spending Pace',
-        version: '0.1.2',
+        version: '0.2.0',
         author: 'pedro-mass',
         copyright: '2026, Pedro Mass (https://github.com/pedro-mass)',
         description:

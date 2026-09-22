@@ -1,4 +1,5 @@
 import { parseTime, pickNumber, type TimeWindow } from './pacing';
+import type { PlatformId } from './platform/types';
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
@@ -17,9 +18,15 @@ function postJson<T>(url: string, body: Record<string, unknown> = {}): Promise<T
 }
 
 export type UsageSnapshot = {
+  platform: PlatformId;
   monthlyWindow: TimeWindow | null;
-  cursorUsedPct: number | null;
-  otherUsedPct: number | null;
+  pro: {
+    cursorUsedPct: number | null;
+    otherUsedPct: number | null;
+  };
+  enterprise: {
+    overallUsedPct: number | null;
+  };
   grok: {
     window: TimeWindow | null;
     usedPct: number | null;
@@ -29,8 +36,14 @@ export type UsageSnapshot = {
 type UsageSummary = {
   billingCycleStart?: string | number;
   billingCycleEnd?: string | number;
+  membershipType?: string;
+  limitType?: string;
   individualUsage?: {
     plan?: Record<string, unknown>;
+    overall?: {
+      used?: number;
+      limit?: number;
+    };
   };
 };
 
@@ -108,6 +121,26 @@ function grokWindow(grok: GrokUsage | null): TimeWindow | null {
   return null;
 }
 
+function overallUsedPct(summary: UsageSummary | null): number | null {
+  const overall = summary?.individualUsage?.overall;
+  if (!overall) return null;
+  const used = Number(overall.used);
+  const limit = Number(overall.limit);
+  if (!Number.isFinite(used) || !Number.isFinite(limit) || limit <= 0) return null;
+  return (used / limit) * 100;
+}
+
+function detectPlatformId(summary: UsageSummary | null): PlatformId {
+  if (!summary) return 'pro-included';
+  const limitType = String(summary.limitType ?? '').toLowerCase();
+  const membership = String(summary.membershipType ?? '').toLowerCase();
+  if (limitType === 'team' || membership === 'enterprise') return 'enterprise-team';
+  if (overallUsedPct(summary) != null && !summary.individualUsage?.plan) {
+    return 'enterprise-team';
+  }
+  return 'pro-included';
+}
+
 export async function loadUsageSnapshot(): Promise<UsageSnapshot> {
   const [summaryResult, periodResult, grokResult] = await Promise.allSettled([
     loadJson<UsageSummary>('/api/usage-summary'),
@@ -119,6 +152,7 @@ export async function loadUsageSnapshot(): Promise<UsageSnapshot> {
   const period = periodResult.status === 'fulfilled' ? periodResult.value : null;
   const grok = grokResult.status === 'fulfilled' ? grokResult.value : null;
 
+  const platform = detectPlatformId(summary);
   const plan = summary?.individualUsage?.plan;
   const usage = period?.planUsage;
 
@@ -134,9 +168,15 @@ export async function loadUsageSnapshot(): Promise<UsageSnapshot> {
   const grokUsed = Number(grokUsedRaw);
 
   return {
+    platform,
     monthlyWindow: billingWindow(summary, period),
-    cursorUsedPct,
-    otherUsedPct,
+    pro: {
+      cursorUsedPct,
+      otherUsedPct,
+    },
+    enterprise: {
+      overallUsedPct: overallUsedPct(summary),
+    },
     grok: {
       window: grokWindow(grok),
       usedPct: Number.isFinite(grokUsed) ? grokUsed : null,

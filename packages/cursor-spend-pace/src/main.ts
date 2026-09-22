@@ -1,13 +1,7 @@
 import { loadUsageSnapshot, type UsageSnapshot } from './api';
-import {
-  findFill,
-  grokTracks,
-  hasUsageTracks,
-  isSpendingPage,
-  monthlyTracks,
-  parseUsedFromFill,
-  trackKind,
-} from './dom';
+import { findFill, isSpendingPage, parseUsedFromFill } from './dom/shared';
+import { detectPlatform, findGrokTracks } from './platform';
+import { enterpriseUsedPctFromDom } from './platform/enterprise/tracks';
 import { paceStatus } from './pacing';
 import { applyPace, clearPaceDecorations } from './render';
 
@@ -130,11 +124,24 @@ async function refresh(): Promise<void> {
   }
 }
 
-function usedPctForKind(kind: 'cursor' | 'other' | 'grok'): number {
-  if (!snapshot) return 0;
-  if (kind === 'cursor') return snapshot.cursorUsedPct ?? 0;
-  if (kind === 'other') return snapshot.otherUsedPct ?? 0;
-  return snapshot.grok.usedPct ?? 0;
+function hasUsageTracks(): boolean {
+  if (!snapshot) return false;
+  const adapter = detectPlatform(snapshot);
+  return adapter.findMonthlyTracks().length > 0 || findGrokTracks().length > 0;
+}
+
+function resolveUsedPct(
+  adapter: ReturnType<typeof detectPlatform>,
+  track: HTMLElement,
+  kind: Parameters<typeof adapter.usedPct>[0],
+): number {
+  const fromApi = adapter.usedPct(kind, snapshot!);
+  if (fromApi != null) return fromApi;
+  if (adapter.id === 'enterprise-team') {
+    const fromDom = enterpriseUsedPctFromDom(track);
+    if (fromDom != null) return fromDom;
+  }
+  return parseUsedFromFill(findFill(track)) ?? 0;
 }
 
 function render(): void {
@@ -146,20 +153,21 @@ function render(): void {
   applying = true;
   try {
     const now = Date.now();
+    const adapter = detectPlatform(snapshot);
     const monthlyWindow = snapshot.monthlyWindow;
 
-    monthlyTracks().forEach((track, index) => {
-      const kind = trackKind(track, index);
-      if (kind !== 'cursor' && kind !== 'other') return;
-      if (!monthlyWindow) return;
-      const status = paceStatus(usedPctForKind(kind), monthlyWindow, now);
+    adapter.findMonthlyTracks().forEach((track, index) => {
+      const kind = adapter.trackKind(track, index);
+      if (!kind || !monthlyWindow) return;
+      const used = resolveUsedPct(adapter, track, kind);
+      const status = paceStatus(used, monthlyWindow, now);
       applyPace(track, status);
     });
 
     const grokWindow = snapshot.grok.window;
     const grokUsedPct = snapshot.grok.usedPct;
     if (grokWindow) {
-      grokTracks().forEach((track) => {
+      findGrokTracks().forEach((track) => {
         const used = grokUsedPct ?? parseUsedFromFill(findFill(track)) ?? 0;
         const status = paceStatus(used, grokWindow, now);
         applyPace(track, status, 'weekly');
