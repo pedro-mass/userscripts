@@ -55,6 +55,25 @@ importers:
         specifier: ^6.0.0
         version: 6.0.1(postcss@8.5.28)(vite@6.4.3)
 
+  packages/lichess-position-notes:
+    dependencies:
+      '@userscripts/shared':
+        specifier: workspace:*
+        version: link:../shared
+      chessops:
+        specifier: ^0.14.2
+        version: 0.14.2
+    devDependencies:
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vite:
+        specifier: ^6.3.5
+        version: 6.4.3
+      vite-plugin-monkey:
+        specifier: ^6.0.0
+        version: 6.0.1(postcss@8.5.28)(vite@6.4.3)
+
   packages/lichess-stats:
     dependencies:
       '@userscripts/shared':
@@ -102,6 +121,9 @@ importers:
         version: 6.0.1(postcss@8.5.28)(vite@6.4.3)
 
 packages:
+
+  '@badrap/result@0.2.13':
+    resolution: {integrity: sha512-Qvyzz0dmGY0h8pwvBFo1BznAKf5Y5NXIDiqhPALWtfU7oHbAToCtPu4FlYQ3uysskSWLx8GUiyhe0nv0nDd/7Q==}
 
   '@esbuild/aix-ppc64@0.25.12':
     resolution: {integrity: sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==}
@@ -427,6 +449,9 @@ packages:
     resolution: {integrity: sha512-tjwM5exMg6BGRI+kNmTntNsvdZS1X8BFYS6tnJ2hdH0kVxM6/eVZ2xy+FqStSWvYmtfFMDLIxurorHwDKfDz5Q==}
     engines: {node: '>=18'}
 
+  chessops@0.14.2:
+    resolution: {integrity: sha512-7DghoMODSN8a17L9JHYBWhLBaSKROKS7+NDsvseNJ502UTbuZ7EYueIAmo1oD+f0TeEqh+jo2gsUFRhGRKAR3g==}
+
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
 
@@ -670,6 +695,8 @@ packages:
 
 snapshots:
 
+  '@badrap/result@0.2.13': {}
+
   '@esbuild/aix-ppc64@0.25.12':
     optional: true
 
@@ -859,6 +886,10 @@ snapshots:
   bundle-name@4.1.0:
     dependencies:
       run-applescript: 7.1.0
+
+  chessops@0.14.2:
+    dependencies:
+      '@badrap/result': 0.2.13
 
   concat-map@0.0.1: {}
 
