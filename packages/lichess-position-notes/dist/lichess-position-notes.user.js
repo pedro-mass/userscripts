@@ -1,15 +1,16 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      0.1.0
+// @version      0.1.1
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=lichess.org
 // @downloadURL  https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/lichess-position-notes/dist/lichess-position-notes.user.js
 // @updateURL    https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/lichess-position-notes/dist/lichess-position-notes.meta.js
-// @match        https://lichess.org/study/*
 // @match        https://lichess.org/study
+// @match        https://lichess.org/study/*
+// @match        https://lichess.org/study/*/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -2917,7 +2918,9 @@
     count.textContent = `${hits.length} prior note${hits.length === 1 ? "" : "s"} at this position`;
     list.replaceChildren();
     if (hits.length === 0) {
-      list.appendChild(el("p", "lpn-empty", "No other indexed notes for this board."));
+      list.appendChild(
+        el("p", "lpn-empty", "No other indexed notes for this board.")
+      );
       return;
     }
     const analysis = (_a = window.site) == null ? void 0 : _a.analysis;
@@ -2968,8 +2971,7 @@
   `;
     document.head.appendChild(style);
   }
-  function mountPanel(host) {
-    if (document.getElementById(PANEL_ID)) return;
+  function buildPanel() {
     injectStyles();
     const panel = el("div");
     panel.id = PANEL_ID;
@@ -3023,17 +3025,34 @@
       URL.revokeObjectURL(a.href);
     });
     toolbar.append(importBtn, exportBtn);
-    panel.append(toolbar, el("div", "lpn-count", ""), el("div", "lpn-list"), status);
-    host.prepend(panel);
+    panel.append(
+      toolbar,
+      el("div", "lpn-count", ""),
+      el("div", "lpn-list"),
+      status
+    );
+    return panel;
   }
-  function tryMount() {
-    const host = document.querySelector("div.study__comments");
-    if (host) mountPanel(host);
+  function ensurePanel() {
+    const underboard = document.querySelector(".analyse__underboard");
+    const buttons = underboard == null ? void 0 : underboard.querySelector(".study__buttons");
+    if (!underboard || !buttons) return;
+    let panel = document.getElementById(PANEL_ID);
+    if (panel && underboard.contains(panel)) return;
+    if (panel) panel.remove();
+    panel = buildPanel();
+    const toolPanel = buttons.nextElementSibling;
+    if (toolPanel && underboard.contains(toolPanel)) {
+      toolPanel.insertAdjacentElement("beforebegin", panel);
+    } else {
+      buttons.insertAdjacentElement("afterend", panel);
+    }
   }
   function startUi() {
-    tryMount();
-    const observer = new MutationObserver(() => tryMount());
+    ensurePanel();
+    const observer = new MutationObserver(() => ensurePanel());
     observer.observe(document.body, { childList: true, subtree: true });
+    window.setInterval(ensurePanel, 800);
     void waitForAnalysis().then(() => {
       var _a, _b, _c, _d, _e;
       const fen = (_c = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.node) == null ? void 0 : _c.fen;

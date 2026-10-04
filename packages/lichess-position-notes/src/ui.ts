@@ -12,7 +12,6 @@ import type { PositionNoteHit } from './types';
 const PANEL_ID = 'lpn-position-notes-panel';
 
 let currentKey = '';
-let mounted = false;
 
 function el(tag: string, className?: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
@@ -24,7 +23,9 @@ function el(tag: string, className?: string, text?: string): HTMLElement {
 function formatSource(hit: PositionNoteHit): string {
   const who =
     hit.white && hit.black ? `${hit.white} – ${hit.black}` : hit.chapterName;
-  return [hit.studyName, who, hit.san ? `@ ${hit.san}` : ''].filter(Boolean).join(' · ');
+  return [hit.studyName, who, hit.san ? `@ ${hit.san}` : '']
+    .filter(Boolean)
+    .join(' · ');
 }
 
 async function renderPanel(hits: PositionNoteHit[]): Promise<void> {
@@ -39,7 +40,9 @@ async function renderPanel(hits: PositionNoteHit[]): Promise<void> {
 
   list.replaceChildren();
   if (hits.length === 0) {
-    list.appendChild(el('p', 'lpn-empty', 'No other indexed notes for this board.'));
+    list.appendChild(
+      el('p', 'lpn-empty', 'No other indexed notes for this board.'),
+    );
     return;
   }
 
@@ -100,9 +103,7 @@ function injectStyles(): void {
   document.head.appendChild(style);
 }
 
-function mountPanel(host: HTMLElement): void {
-  if (document.getElementById(PANEL_ID)) return;
-
+function buildPanel(): HTMLElement {
   injectStyles();
   const panel = el('div');
   panel.id = PANEL_ID;
@@ -159,20 +160,40 @@ function mountPanel(host: HTMLElement): void {
   });
 
   toolbar.append(importBtn, exportBtn);
-  panel.append(toolbar, el('div', 'lpn-count', ''), el('div', 'lpn-list'), status);
-  host.prepend(panel);
-  mounted = true;
+  panel.append(
+    toolbar,
+    el('div', 'lpn-count', ''),
+    el('div', 'lpn-list'),
+    status,
+  );
+  return panel;
 }
 
-function tryMount(): void {
-  const host = document.querySelector<HTMLElement>('div.study__comments');
-  if (host) mountPanel(host);
+/** Snabbdom replaces study__comments; keep panel as sibling of tool tabs. */
+function ensurePanel(): void {
+  const underboard = document.querySelector<HTMLElement>('.analyse__underboard');
+  const buttons = underboard?.querySelector('.study__buttons');
+  if (!underboard || !buttons) return;
+
+  let panel = document.getElementById(PANEL_ID);
+  if (panel && underboard.contains(panel)) return;
+
+  if (panel) panel.remove();
+  panel = buildPanel();
+
+  const toolPanel = buttons.nextElementSibling;
+  if (toolPanel && underboard.contains(toolPanel)) {
+    toolPanel.insertAdjacentElement('beforebegin', panel);
+  } else {
+    buttons.insertAdjacentElement('afterend', panel);
+  }
 }
 
 export function startUi(): void {
-  tryMount();
-  const observer = new MutationObserver(() => tryMount());
+  ensurePanel();
+  const observer = new MutationObserver(() => ensurePanel());
   observer.observe(document.body, { childList: true, subtree: true });
+  window.setInterval(ensurePanel, 800);
 
   void waitForAnalysis().then(() => {
     const fen = window.site?.analysis?.node?.fen;
@@ -185,5 +206,6 @@ export function startUi(): void {
 }
 
 export function isMounted(): boolean {
-  return mounted;
+  const panel = document.getElementById(PANEL_ID);
+  return Boolean(panel?.isConnected);
 }

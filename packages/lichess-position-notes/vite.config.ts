@@ -10,14 +10,18 @@ export default defineConfig({
       entry: 'src/main.ts',
       userscript: {
         name: 'Lichess: Study position notes',
-        version: '0.1.0',
+        version: '0.1.1',
         author: 'pedro-mass',
         description:
           'Index your study comments by position (FEN) and show prior notes when you revisit the same board.',
         icon: 'https://www.google.com/s2/favicons?sz=64&domain=lichess.org',
         namespace:
           'https://github.com/pedro-mass/userscripts/lichess-position-notes',
-        match: ['https://lichess.org/study/*', 'https://lichess.org/study'],
+        match: [
+          'https://lichess.org/study',
+          'https://lichess.org/study/*',
+          'https://lichess.org/study/*/*',
+        ],
         license: 'GNU GPLv3',
         'run-at': 'document-idle',
         grant: 'none',
