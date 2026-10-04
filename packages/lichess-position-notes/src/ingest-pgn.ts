@@ -1,41 +1,37 @@
 import { makeFen } from 'chessops/fen';
 import type { Position } from 'chessops';
-import {
-  parseComment,
-  parsePgn,
-  startingPosition,
-  transform,
-  type Game,
-} from 'chessops/pgn';
+import { parsePgn, startingPosition, walk, type Game } from 'chessops/pgn';
 import { makeSanAndPlay, parseSan } from 'chessops/san';
 import { makeUci } from 'chessops/util';
+import { humanTextFromPgnComment } from './comment-text';
 import { positionKeyFromFen } from './position-key';
 import type { PositionNoteHit } from './types';
 
-interface WalkCtx {
+interface WalkState {
   pos: Position;
   ply: number;
   uciTrail: string[];
   onMainline: boolean;
-  clone(): WalkCtx;
+  clone(): WalkState;
 }
 
-function makeCtx(pos: Position): WalkCtx {
-  return {
+function makeWalkState(pos: Position): WalkState {
+  const state: WalkState = {
     pos,
     ply: 0,
     uciTrail: [],
     onMainline: true,
     clone() {
       return {
-        pos: this.pos.clone(),
-        ply: this.ply,
-        uciTrail: [...this.uciTrail],
-        onMainline: this.onMainline,
-        clone: this.clone,
+        pos: state.pos.clone(),
+        ply: state.ply,
+        uciTrail: [...state.uciTrail],
+        onMainline: state.onMainline,
+        clone: state.clone,
       };
     },
   };
+  return state;
 }
 
 function header(game: Game<unknown>, name: string): string {
@@ -47,10 +43,9 @@ function chapterMeta(game: Game<unknown>, fallbackStudyId: string) {
   const m = chapterUrl.match(/\/study\/([A-Za-z0-9]{8})\/([A-Za-z0-9]{8})/);
   const studyId = m?.[1] ?? fallbackStudyId;
   const chapterId = m?.[2] ?? '';
-  const chapterUrlNorm =
-    chapterId
-      ? `https://lichess.org/study/${studyId}/${chapterId}`
-      : `https://lichess.org/study/${studyId}`;
+  const chapterUrlNorm = chapterId
+    ? `https://lichess.org/study/${studyId}/${chapterId}`
+    : `https://lichess.org/study/${studyId}`;
   return {
     studyId,
     studyName: header(game, 'StudyName'),
@@ -69,7 +64,6 @@ function makeHit(
   fields: {
     fenFull: string;
     text: string;
-    path: string;
     ply: number;
     san: string;
     uciTrail: string[];
@@ -97,7 +91,7 @@ function makeHit(
     white: meta.white,
     black: meta.black,
     date: meta.date,
-    path: fields.path,
+    path: '',
     ply: fields.ply,
     san: fields.san,
     uciTrail: [...fields.uciTrail],
@@ -110,29 +104,30 @@ function makeHit(
   };
 }
 
-function pushComment(
+function pushComments(
   meta: ReturnType<typeof chapterMeta>,
-  ctx: WalkCtx,
+  state: WalkState,
   san: string,
-  raw: string,
+  raws: string[],
   now: number,
   out: PositionNoteHit[],
 ): void {
-  const parsed = parseComment(raw);
-  const hit = makeHit(
-    meta,
-    {
-      fenFull: makeFen(ctx.pos.toSetup()),
-      text: parsed.text,
-      path: '',
-      ply: ctx.ply,
-      san,
-      uciTrail: ctx.uciTrail,
-      onMainline: ctx.onMainline,
-    },
-    now,
-  );
-  if (hit) out.push(hit);
+  for (const raw of raws) {
+    const text = humanTextFromPgnComment(raw);
+    const hit = makeHit(
+      meta,
+      {
+        fenFull: makeFen(state.pos.toSetup()),
+        text,
+        ply: state.ply,
+        san,
+        uciTrail: state.uciTrail,
+        onMainline: state.onMainline,
+      },
+      now,
+    );
+    if (hit) out.push(hit);
+  }
 }
 
 export function splitStudyPgn(pgn: string): string[] {
@@ -147,7 +142,7 @@ export function hitsFromChapterPgn(
   fallbackStudyId: string,
 ): PositionNoteHit[] {
   const games = parsePgn(pgn);
-  const game = games[0];
+  const game = Array.isArray(games) ? games[0] : [...games][0];
   if (!game) return [];
 
   const meta = chapterMeta(game, fallbackStudyId);
@@ -156,25 +151,20 @@ export function hitsFromChapterPgn(
 
   const now = Date.now();
   const out: PositionNoteHit[] = [];
-  const ctx = makeCtx(start.value);
+  const root = makeWalkState(start.value);
 
-  transform(game.moves, ctx, (walkCtx, data, childIndex) => {
-    if (childIndex > 0) walkCtx.onMainline = false;
+  walk(game.moves, root, (state, data, childIndex) => {
+    if (childIndex > 0) state.onMainline = false;
 
-    for (const raw of data.startingComments ?? []) {
-      pushComment(meta, walkCtx, data.san, raw, now, out);
-    }
+    pushComments(meta, state, data.san, data.startingComments ?? [], now, out);
 
-    const move = parseSan(walkCtx.pos, data.san);
-    if (!move) return;
-    makeSanAndPlay(walkCtx.pos, move);
-    walkCtx.ply += 1;
-    walkCtx.uciTrail.push(makeUci(move));
+    const move = parseSan(state.pos, data.san);
+    if (!move) return false;
+    makeSanAndPlay(state.pos, move);
+    state.ply += 1;
+    state.uciTrail.push(makeUci(move));
 
-    for (const raw of data.comments ?? []) {
-      pushComment(meta, walkCtx, data.san, raw, now, out);
-    }
-
+    pushComments(meta, state, data.san, data.comments ?? [], now, out);
     return undefined;
   });
 

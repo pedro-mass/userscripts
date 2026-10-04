@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      0.1.1
+// @version      0.1.2
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
@@ -2252,33 +2252,17 @@
       this.data = data;
     }
   }
-  const transform = (node, ctx, f) => {
-    const root = new Node();
-    const stack = [
-      {
-        before: node,
-        after: root,
-        ctx
-      }
-    ];
+  const walk = (node, ctx, f) => {
+    const stack = [{ node, ctx }];
     let frame;
     while (frame = stack.pop()) {
-      for (let childIndex = 0; childIndex < frame.before.children.length; childIndex++) {
-        const ctx2 = childIndex < frame.before.children.length - 1 ? frame.ctx.clone() : frame.ctx;
-        const childBefore = frame.before.children[childIndex];
-        const data = f(ctx2, childBefore.data, childIndex);
-        if (defined(data)) {
-          const childAfter = new ChildNode(data);
-          frame.after.children.push(childAfter);
-          stack.push({
-            before: childBefore,
-            after: childAfter,
-            ctx: ctx2
-          });
-        }
+      for (let childIndex = 0; childIndex < frame.node.children.length; childIndex++) {
+        const ctx2 = childIndex < frame.node.children.length - 1 ? frame.ctx.clone() : frame.ctx;
+        const child = frame.node.children[childIndex];
+        if (f(ctx2, child.data, childIndex) !== false)
+          stack.push({ node: child, ctx: ctx2 });
       }
     }
-    return root;
   };
   const makeOutcome = (outcome) => {
     if (!outcome)
@@ -2772,22 +2756,30 @@
       promotion
     };
   };
-  function makeCtx(pos) {
-    return {
+  function humanTextFromPgnComment(raw) {
+    const wrapped = raw.trim().startsWith("{") ? raw : `{${raw}}`;
+    let text = parseComment(wrapped).text.trim();
+    text = text.replace(/^\{\s*|\s*\}$/g, "").trim();
+    text = text.replace(/\[%[^\]]*\]/g, "").trim();
+    return text;
+  }
+  function makeWalkState(pos) {
+    const state = {
       pos,
       ply: 0,
       uciTrail: [],
       onMainline: true,
       clone() {
         return {
-          pos: this.pos.clone(),
-          ply: this.ply,
-          uciTrail: [...this.uciTrail],
-          onMainline: this.onMainline,
-          clone: this.clone
+          pos: state.pos.clone(),
+          ply: state.ply,
+          uciTrail: [...state.uciTrail],
+          onMainline: state.onMainline,
+          clone: state.clone
         };
       }
     };
+    return state;
   }
   function header(game, name) {
     return game.headers.get(name) ?? "";
@@ -2829,7 +2821,7 @@
       white: meta.white,
       black: meta.black,
       date: meta.date,
-      path: fields.path,
+      path: "",
       ply: fields.ply,
       san: fields.san,
       uciTrail: [...fields.uciTrail],
@@ -2841,49 +2833,46 @@
       updatedAt: now
     };
   }
-  function pushComment(meta, ctx, san, raw, now, out) {
-    const parsed = parseComment(raw);
-    const hit = makeHit(
-      meta,
-      {
-        fenFull: makeFen(ctx.pos.toSetup()),
-        text: parsed.text,
-        path: "",
-        ply: ctx.ply,
-        san,
-        uciTrail: ctx.uciTrail,
-        onMainline: ctx.onMainline
-      },
-      now
-    );
-    if (hit) out.push(hit);
+  function pushComments(meta, state, san, raws, now, out) {
+    for (const raw of raws) {
+      const text = humanTextFromPgnComment(raw);
+      const hit = makeHit(
+        meta,
+        {
+          fenFull: makeFen(state.pos.toSetup()),
+          text,
+          ply: state.ply,
+          san,
+          uciTrail: state.uciTrail,
+          onMainline: state.onMainline
+        },
+        now
+      );
+      if (hit) out.push(hit);
+    }
   }
   function splitStudyPgn(pgn) {
     return pgn.split(/\n\n(?=\[)/).map((chunk) => chunk.trim()).filter(Boolean);
   }
   function hitsFromChapterPgn(pgn, fallbackStudyId) {
     const games = parsePgn(pgn);
-    const game = games[0];
+    const game = Array.isArray(games) ? games[0] : [...games][0];
     if (!game) return [];
     const meta = chapterMeta(game, fallbackStudyId);
     const start = startingPosition(game.headers);
     if (start.isErr) return [];
     const now = Date.now();
     const out = [];
-    const ctx = makeCtx(start.value);
-    transform(game.moves, ctx, (walkCtx, data, childIndex) => {
-      if (childIndex > 0) walkCtx.onMainline = false;
-      for (const raw of data.startingComments ?? []) {
-        pushComment(meta, walkCtx, data.san, raw, now, out);
-      }
-      const move = parseSan(walkCtx.pos, data.san);
-      if (!move) return;
-      makeSanAndPlay(walkCtx.pos, move);
-      walkCtx.ply += 1;
-      walkCtx.uciTrail.push(makeUci(move));
-      for (const raw of data.comments ?? []) {
-        pushComment(meta, walkCtx, data.san, raw, now, out);
-      }
+    const root = makeWalkState(start.value);
+    walk(game.moves, root, (state, data, childIndex) => {
+      if (childIndex > 0) state.onMainline = false;
+      pushComments(meta, state, data.san, data.startingComments ?? [], now, out);
+      const move = parseSan(state.pos, data.san);
+      if (!move) return false;
+      makeSanAndPlay(state.pos, move);
+      state.ply += 1;
+      state.uciTrail.push(makeUci(move));
+      pushComments(meta, state, data.san, data.comments ?? [], now, out);
       return void 0;
     });
     return out;
