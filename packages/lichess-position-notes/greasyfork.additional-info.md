@@ -2,9 +2,7 @@ Index your Lichess **study** comments by chess position and surface notes from *
 
 ### Screenshots
 
-![Cross-chapter notes under the Comments tab](https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/lichess-position-notes/store/images/study-underboard.png)
-
-![Import study index and export JSON](https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/lichess-position-notes/store/images/study-index-toolbar.png)
+![Cross-chapter notes, index, and import under the Comments tab](https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/lichess-position-notes/store/images/study-underboard.png)
 
 ### What you get
 

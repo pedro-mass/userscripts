@@ -41,26 +41,11 @@ await page.screenshot({
   clip: clipUnder,
 });
 
-await page.evaluate(() => {
-  const panel = document.getElementById('lpn-position-notes-panel');
-  const details = panel?.shadowRoot?.querySelector('details');
-  if (details) details.open = true;
-});
-await page.waitForTimeout(300);
-await page.screenshot({
-  path: join(OUT, 'study-index-toolbar.png'),
-  clip: clipUnder,
-});
-
 const panel = await page.evaluate(() =>
   Boolean(document.getElementById('lpn-position-notes-panel')),
 );
 console.log(
-  JSON.stringify(
-    { ok: panel, out: OUT, files: ['study-underboard.png', 'study-index-toolbar.png'] },
-    null,
-    2,
-  ),
+  JSON.stringify({ ok: panel, out: OUT, files: ['study-underboard.png'] }, null, 2),
 );
 await browser.close();
 process.exit(panel ? 0 : 2);

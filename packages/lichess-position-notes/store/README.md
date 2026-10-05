@@ -6,8 +6,7 @@ Listing images for **Greasy Fork** ([598871](https://greasyfork.org/en/scripts/5
 
 | File | Use |
 | --- | --- |
-| `images/study-underboard.png` | Comments tab: cross-chapter notes panel |
-| `images/study-index-toolbar.png` | Index details: Import / Export |
+| `images/study-underboard.png` | Comments tab: cross-chapter list, index, Import / Export |
 
 Recapture (Brave + Tampermonkey, remote debugging on 9222):
 
