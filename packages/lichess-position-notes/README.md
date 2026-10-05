@@ -12,6 +12,8 @@ pnpm --filter @userscripts/lichess-position-notes dev
 
 Build: `pnpm --filter @userscripts/lichess-position-notes build` → `dist/lichess-position-notes.user.js`.
 
+**Verify:** inject built JS in the Cursor in-app browser on a study chapter URL before Tampermonkey. [docs/verify-in-browser.md](../../docs/verify-in-browser.md).
+
 ## Usage
 
 1. Open a study (e.g. `https://lichess.org/study/oDP5q102`).

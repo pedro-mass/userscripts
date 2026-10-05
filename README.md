@@ -2,6 +2,8 @@
 
 Personal browser userscripts (Tampermonkey / Violentmonkey), built as a pnpm monorepo.
 
+**Agents:** prove behavior on the live site in the Cursor in-app browser before treating `dist/*.user.js` or Greasy Fork as done. Mantra and steps: **[docs/verify-in-browser.md](docs/verify-in-browser.md)** · [.agent/AGENTS.md](.agent/AGENTS.md).
+
 **Actively maintained:** [LiveChart.me minimum rating filter](packages/live-chart-filter/), [Chess.com → Lichess export](packages/chesscom-lichess-export/), and [Cursor spending pace](packages/cursor-spend-pace/). Other packages are archived in-repo and no longer supported.
 
 ## Layout
@@ -65,5 +67,7 @@ Rebuild all packages (including archived): `pnpm build:all`
 4. Document in this README.
 
 ## Extension path
+
+Order: **working JavaScript on the target URL** → userscript bundle → Chrome MV3 extension. See [docs/verify-in-browser.md](docs/verify-in-browser.md).
 
 Keep privileged APIs behind `packages/shared` adapters (`storage`, `http`, etc.) so a future Chrome MV3 extension can swap implementations without rewriting DOM logic.
