@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      0.1.2
+// @version      0.1.3
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
@@ -20,20 +20,27 @@
 
   const DB_NAME = "lichess-position-notes";
   const STORE = "hits";
-  const VERSION = 1;
+  const VERSION = 2;
   function openDb() {
     return new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, VERSION);
       req.onerror = () => reject(req.error);
       req.onsuccess = () => resolve(req.result);
-      req.onupgradeneeded = () => {
+      req.onupgradeneeded = (event) => {
         const db = req.result;
+        let store;
         if (!db.objectStoreNames.contains(STORE)) {
-          const store = db.createObjectStore(STORE, { keyPath: "id" });
+          store = db.createObjectStore(STORE, { keyPath: "id" });
           store.createIndex("positionKey", "positionKey", { unique: false });
           store.createIndex("studyChapterPath", ["studyId", "chapterId", "path"], {
             unique: false
           });
+          store.createIndex("studyId", "studyId", { unique: false });
+        } else {
+          store = req.transaction.objectStore(STORE);
+        }
+        if (event.oldVersion < 2 && !store.indexNames.contains("studyId")) {
+          store.createIndex("studyId", "studyId", { unique: false });
         }
       };
     });
@@ -63,6 +70,15 @@
       const tx = db.transaction(STORE, "readonly");
       const req = tx.objectStore(STORE).index("positionKey").getAll(positionKey);
       req.onsuccess = () => resolve(req.result.sort((a, b) => b.updatedAt - a.updatedAt));
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function countForStudy(studyId) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readonly");
+      const req = tx.objectStore(STORE).index("studyId").count(studyId);
+      req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
   }
@@ -2886,7 +2902,9 @@
     return all;
   }
   const PANEL_ID = "lpn-position-notes-panel";
+  const STATUS_CLEAR_MS = 4e3;
   let currentKey = "";
+  let statusTimer;
   function el(tag, className, text) {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -2897,25 +2915,50 @@
     const who = hit.white && hit.black ? `${hit.white} – ${hit.black}` : hit.chapterName;
     return [hit.studyName, who, hit.san ? `@ ${hit.san}` : ""].filter(Boolean).join(" · ");
   }
+  function setTransientStatus(status, message) {
+    status.textContent = message;
+    if (statusTimer) window.clearTimeout(statusTimer);
+    statusTimer = window.setTimeout(() => {
+      status.textContent = "";
+    }, STATUS_CLEAR_MS);
+  }
+  async function refreshStudyMeta(summary, studyId) {
+    if (!studyId) {
+      summary.textContent = "Position notes index";
+      return;
+    }
+    const [inStudy, total] = await Promise.all([
+      countForStudy(studyId),
+      countAll()
+    ]);
+    if (inStudy > 0) {
+      summary.textContent = `Index · ${inStudy} in this study · ${total} total`;
+    } else {
+      summary.textContent = `Index · ${total} note${total === 1 ? "" : "s"} (study not imported)`;
+    }
+  }
   async function renderPanel(hits) {
     var _a, _b, _c;
     const panel = document.getElementById(PANEL_ID);
     if (!panel) return;
     const list = panel.querySelector(".lpn-list");
-    const count = panel.querySelector(".lpn-count");
-    if (!list || !count) return;
-    count.textContent = `${hits.length} prior note${hits.length === 1 ? "" : "s"} at this position`;
-    list.replaceChildren();
+    const heading = panel.querySelector(".lpn-prior-heading");
+    if (!list || !heading) return;
     if (hits.length === 0) {
-      list.appendChild(
-        el("p", "lpn-empty", "No other indexed notes for this board.")
-      );
+      heading.textContent = "No other indexed notes at this board";
+      heading.classList.add("lpn-prior-heading--quiet");
+      list.replaceChildren();
+      list.hidden = true;
       return;
     }
+    heading.textContent = `${hits.length} other note${hits.length === 1 ? "" : "s"} at this position`;
+    heading.classList.remove("lpn-prior-heading--quiet");
+    list.hidden = false;
     const analysis = (_a = window.site) == null ? void 0 : _a.analysis;
     const hereStudy = (_b = analysis == null ? void 0 : analysis.study) == null ? void 0 : _b.data.study.id;
     const hereChapter = (_c = analysis == null ? void 0 : analysis.study) == null ? void 0 : _c.vm.chapterId;
     const herePath = analysis == null ? void 0 : analysis.path;
+    list.replaceChildren();
     for (const hit of hits) {
       const sameNode = hit.studyId === hereStudy && hit.chapterId === hereChapter && hit.path && hit.path === herePath;
       const item = el("div", "lpn-hit");
@@ -2949,14 +2992,16 @@
     const style = document.createElement("style");
     style.id = "lpn-styles";
     style.textContent = `
-    #${PANEL_ID} { margin: 0.75rem 0; padding: 0.75rem; border: 1px solid var(--border, #404040); border-radius: 4px; }
-    #${PANEL_ID} .lpn-title { font-weight: 600; margin-bottom: 0.35rem; }
-    #${PANEL_ID} .lpn-toolbar { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.5rem; }
-    #${PANEL_ID} .lpn-count { font-size: 0.85rem; opacity: 0.85; margin-bottom: 0.5rem; }
+    #${PANEL_ID} { margin: 0.65rem 0 0; padding: 0; border: 0; }
+    #${PANEL_ID} .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0.5rem 0 0.35rem; }
+    #${PANEL_ID} .lpn-prior-heading--quiet { font-weight: normal; opacity: 0.75; }
     #${PANEL_ID} .lpn-hit { margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--border, #333); }
     #${PANEL_ID} .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; }
-    #${PANEL_ID} .lpn-hit-text { white-space: pre-wrap; }
-    #${PANEL_ID} .lpn-status { font-size: 0.8rem; margin-top: 0.35rem; }
+    #${PANEL_ID} .lpn-hit-text { white-space: pre-wrap; font-size: 0.9rem; }
+    #${PANEL_ID} .lpn-meta { margin-top: 0.75rem; font-size: 0.8rem; opacity: 0.9; }
+    #${PANEL_ID} .lpn-meta summary { cursor: pointer; user-select: none; }
+    #${PANEL_ID} .lpn-toolbar { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.5rem 0 0.25rem; }
+    #${PANEL_ID} .lpn-status { min-height: 1.1em; margin-top: 0.25rem; opacity: 0.85; }
   `;
     document.head.appendChild(style);
   }
@@ -2964,17 +3009,22 @@
     injectStyles();
     const panel = el("div");
     panel.id = PANEL_ID;
-    panel.appendChild(el("div", "lpn-title", "Position notes (indexed)"));
+    const prior = el("section", "lpn-prior");
+    const heading = el("div", "lpn-prior-heading", "");
+    const list = el("div", "lpn-list");
+    prior.append(heading, list);
+    const details = el("details", "lpn-meta");
+    const summary = el("summary", "", "Position notes index");
     const toolbar = el("div", "lpn-toolbar");
     const importBtn = el(
       "button",
-      "button",
+      "button button-empty button-no-upper",
       "Import this study"
     );
     importBtn.type = "button";
     const exportBtn = el(
       "button",
-      "button button-empty",
+      "button button-empty button-no-upper",
       "Export JSON"
     );
     exportBtn.type = "button";
@@ -2983,7 +3033,7 @@
       var _a, _b, _c;
       const studyId = studyIdFromLocation();
       if (!studyId) {
-        status.textContent = "Not on a study page.";
+        setTransientStatus(status, "Not on a study page.");
         return;
       }
       importBtn.disabled = true;
@@ -2992,14 +3042,20 @@
         const pgn = await fetchStudyPgn(studyId);
         const hits = hitsFromStudyPgn(pgn, studyId);
         await upsertMany(hits);
-        const total = await countAll();
-        status.textContent = `Imported ${hits.length} notes (${total} total in index).`;
+        await refreshStudyMeta(summary, studyId);
+        setTransientStatus(
+          status,
+          `Imported ${hits.length} notes from this study.`
+        );
         if ((_c = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.node) == null ? void 0 : _c.fen) {
           currentKey = "";
           await refreshForFen(window.site.analysis.node.fen);
         }
       } catch (e2) {
-        status.textContent = e2 instanceof Error ? e2.message : "Import failed.";
+        setTransientStatus(
+          status,
+          e2 instanceof Error ? e2.message : "Import failed."
+        );
       } finally {
         importBtn.disabled = false;
       }
@@ -3014,28 +3070,54 @@
       URL.revokeObjectURL(a.href);
     });
     toolbar.append(importBtn, exportBtn);
-    panel.append(
-      toolbar,
-      el("div", "lpn-count", ""),
-      el("div", "lpn-list"),
-      status
-    );
+    details.append(summary, toolbar, status);
+    panel.append(prior, details);
+    void refreshStudyMeta(summary, studyIdFromLocation());
     return panel;
   }
-  function ensurePanel() {
+  function commentFormAnchor() {
+    return document.querySelector(
+      ".analyse__underboard .study__comments form.form3"
+    );
+  }
+  function mountPanel(panel) {
+    const form = commentFormAnchor();
+    if (form == null ? void 0 : form.parentElement) {
+      if (panel.previousElementSibling === form) return;
+      form.insertAdjacentElement("afterend", panel);
+      return;
+    }
     const underboard = document.querySelector(".analyse__underboard");
     const buttons = underboard == null ? void 0 : underboard.querySelector(".study__buttons");
     if (!underboard || !buttons) return;
-    let panel = document.getElementById(PANEL_ID);
-    if (panel && underboard.contains(panel)) return;
-    if (panel) panel.remove();
-    panel = buildPanel();
+    const comments = underboard.querySelector(".study__comments");
+    if ((comments == null ? void 0 : comments.parentElement) && underboard.contains(comments)) {
+      if (panel.previousElementSibling === comments) return;
+      comments.insertAdjacentElement("afterend", panel);
+      return;
+    }
     const toolPanel = buttons.nextElementSibling;
     if (toolPanel && underboard.contains(toolPanel)) {
+      if (panel.previousElementSibling === toolPanel) return;
       toolPanel.insertAdjacentElement("beforebegin", panel);
     } else {
       buttons.insertAdjacentElement("afterend", panel);
     }
+  }
+  function ensurePanel() {
+    let panel = document.getElementById(PANEL_ID);
+    if (panel == null ? void 0 : panel.isConnected) {
+      mountPanel(panel);
+      return;
+    }
+    if (panel) panel.remove();
+    panel = buildPanel();
+    mountPanel(panel);
+    void waitForAnalysis().then(() => {
+      var _a, _b, _c;
+      const fen = (_c = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.node) == null ? void 0 : _c.fen;
+      if (fen) void refreshForFen(fen);
+    });
   }
   function startUi() {
     ensurePanel();
