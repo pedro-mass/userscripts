@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      1.0.0
+// @version      1.0.1
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
@@ -21,6 +21,9 @@
   const DB_NAME = "lichess-position-notes";
   const STORE = "hits";
   const VERSION = 2;
+  function liveNodeId(studyId, chapterId, path) {
+    return `live|${studyId}|${chapterId}|${path}`;
+  }
   function openDb() {
     return new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, VERSION);
@@ -43,6 +46,15 @@
           store.createIndex("studyId", "studyId", { unique: false });
         }
       };
+    });
+  }
+  async function deleteHitById(id) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
     });
   }
   async function replaceLiveNodeHit(hit) {
@@ -183,7 +195,7 @@
     const san = analysis.node.san;
     const chapterUrl = `https://lichess.org/study/${studyId}/${chapterId}`;
     const onMainline = true;
-    const id = `live|${studyId}|${chapterId}|${path}`;
+    const id = liveNodeId(studyId, chapterId, path);
     return {
       id,
       positionKey,
@@ -224,31 +236,68 @@
     }
     window.open(hit.positionUrl || hit.chapterUrl, "_blank", "noopener");
   }
-  let hooked = false;
-  function installLiveCapture() {
-    if (hooked) return;
-    hooked = true;
+  let wsHooked = false;
+  let studyHooked = false;
+  function notifyDbChanged() {
+    window.dispatchEvent(new CustomEvent("lpn-db-changed"));
+  }
+  async function onSetComment(data) {
+    var _a, _b, _c, _d;
+    const study = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.study;
+    const analysis = (_c = window.site) == null ? void 0 : _c.analysis;
+    const studyId = (_d = study == null ? void 0 : study.data) == null ? void 0 : _d.id;
+    if (!studyId) return;
+    const chapterId = data.ch ?? study.vm.chapterId ?? "";
+    const path = data.path ?? (analysis == null ? void 0 : analysis.path) ?? "";
+    const trimmed = (data.text ?? "").trim();
+    if (!trimmed) {
+      if (chapterId && path) {
+        await deleteHitById(liveNodeId(studyId, chapterId, path));
+        notifyDbChanged();
+      }
+      return;
+    }
+    const hit = liveHitFromAnalysis(trimmed);
+    if (!hit) return;
+    hit.chapterId = chapterId || hit.chapterId;
+    hit.path = path || hit.path;
+    await replaceLiveNodeHit(hit);
+    notifyDbChanged();
+  }
+  function hookWebSocketSend() {
+    if (wsHooked) return;
+    wsHooked = true;
     const OrigSend = WebSocket.prototype.send;
     WebSocket.prototype.send = function(data) {
-      var _a;
       if (typeof data === "string" && data.includes('"setComment"')) {
         try {
           const msg = JSON.parse(data);
-          if (msg.t === "setComment" && ((_a = msg.d) == null ? void 0 : _a.text)) {
-            const hit = liveHitFromAnalysis(msg.d.text);
-            if (hit) {
-              hit.chapterId = msg.d.ch ?? hit.chapterId;
-              hit.path = msg.d.path ?? hit.path;
-              void replaceLiveNodeHit(hit).then(() => {
-                window.dispatchEvent(new CustomEvent("lpn-db-changed"));
-              });
-            }
+          if (msg.t === "setComment" && msg.d) {
+            void onSetComment(msg.d);
           }
         } catch {
         }
       }
       return OrigSend.call(this, data);
     };
+  }
+  async function hookStudyMakeChange() {
+    var _a, _b;
+    if (studyHooked) return;
+    await waitForAnalysis();
+    const study = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.study;
+    if (!study) return;
+    studyHooked = true;
+    const orig = study.makeChange.bind(study);
+    study.makeChange = (type, data) => {
+      const ok = orig(type, data);
+      if (type === "setComment") void onSetComment(data);
+      return ok;
+    };
+  }
+  function installLiveCapture() {
+    hookWebSocketSend();
+    void hookStudyMakeChange();
   }
   class r {
     unwrap(r2, t2) {
@@ -2943,8 +2992,27 @@
     }
     return all;
   }
+  function isCurrentChapterNote(hit, studyId, chapterId) {
+    if (!studyId || !chapterId) return false;
+    return hit.studyId === studyId && hit.chapterId === chapterId;
+  }
+  function dedupeNewestPerChapter(hits) {
+    const byChapter = /* @__PURE__ */ new Map();
+    for (const hit of hits) {
+      const key = hit.chapterId || hit.chapterUrl;
+      const prev = byChapter.get(key);
+      if (!prev || hit.updatedAt > prev.updatedAt) byChapter.set(key, hit);
+    }
+    return [...byChapter.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+  function hitsForDisplay$1(hits, studyId, chapterId) {
+    const others = hits.filter(
+      (hit) => !isCurrentChapterNote(hit, studyId, chapterId)
+    );
+    return dedupeNewestPerChapter(others);
+  }
   const PANEL_ID = "lpn-position-notes-panel";
-  const LPN_VERSION = "1.0.0";
+  const LPN_VERSION = "1.0.1";
   const STATUS_CLEAR_MS = 4e3;
   const ENSURE_BACKUP_MS = 3e3;
   let currentKey = "";
@@ -2989,24 +3057,10 @@
       summary.textContent = `Index · ${total} note${total === 1 ? "" : "s"} (study not imported)`;
     }
   }
-  function isCurrentChapterNote(hit) {
+  function hitsForDisplay(hits) {
     var _a, _b, _c;
     const study = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.study;
-    if (!study) return false;
-    return hit.studyId === ((_c = study.data) == null ? void 0 : _c.id) && hit.chapterId === study.vm.chapterId;
-  }
-  function dedupeNewestPerChapter(hits) {
-    const byChapter = /* @__PURE__ */ new Map();
-    for (const hit of hits) {
-      const key = hit.chapterId || hit.chapterUrl;
-      const prev = byChapter.get(key);
-      if (!prev || hit.updatedAt > prev.updatedAt) byChapter.set(key, hit);
-    }
-    return [...byChapter.values()].sort((a, b) => b.updatedAt - a.updatedAt);
-  }
-  function hitsForDisplay(hits) {
-    const others = hits.filter((hit) => !isCurrentChapterNote(hit));
-    return dedupeNewestPerChapter(others);
+    return hitsForDisplay$1(hits, (_c = study == null ? void 0 : study.data) == null ? void 0 : _c.id, study == null ? void 0 : study.vm.chapterId);
   }
   function headingForVisible(count) {
     if (count === 0) return "No notes from other chapters at this board";

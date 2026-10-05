@@ -13,11 +13,12 @@ import {
   studyIdFromLocation,
   waitForAnalysis,
 } from './lichess';
+import { hitsForDisplay as filterHitsForDisplay } from './display-hits';
 import { positionKeyFromFen } from './position-key';
 import type { PositionNoteHit } from './types';
 
 const PANEL_ID = 'lpn-position-notes-panel';
-const LPN_VERSION = '1.0.0';
+const LPN_VERSION = '1.0.1';
 const STATUS_CLEAR_MS = 4000;
 const ENSURE_BACKUP_MS = 3000;
 
@@ -75,29 +76,9 @@ async function refreshStudyMeta(
   }
 }
 
-/** List is for other chapters only; this node is already in the Lichess comment box. */
-function isCurrentChapterNote(hit: PositionNoteHit): boolean {
-  const study = window.site?.analysis?.study;
-  if (!study) return false;
-  return (
-    hit.studyId === study.data?.id && hit.chapterId === study.vm.chapterId
-  );
-}
-
-/** One row per other chapter (newest wins); drops stale live edit duplicates. */
-function dedupeNewestPerChapter(hits: PositionNoteHit[]): PositionNoteHit[] {
-  const byChapter = new Map<string, PositionNoteHit>();
-  for (const hit of hits) {
-    const key = hit.chapterId || hit.chapterUrl;
-    const prev = byChapter.get(key);
-    if (!prev || hit.updatedAt > prev.updatedAt) byChapter.set(key, hit);
-  }
-  return [...byChapter.values()].sort((a, b) => b.updatedAt - a.updatedAt);
-}
-
 function hitsForDisplay(hits: PositionNoteHit[]): PositionNoteHit[] {
-  const others = hits.filter((hit) => !isCurrentChapterNote(hit));
-  return dedupeNewestPerChapter(others);
+  const study = window.site?.analysis?.study;
+  return filterHitsForDisplay(hits, study?.data?.id, study?.vm.chapterId);
 }
 
 function headingForVisible(count: number): string {

@@ -4,6 +4,14 @@ const DB_NAME = 'lichess-position-notes';
 const STORE = 'hits';
 const VERSION = 2;
 
+export function liveNodeId(
+  studyId: string,
+  chapterId: string,
+  path: string,
+): string {
+  return `live|${studyId}|${chapterId}|${path}`;
+}
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, VERSION);
@@ -26,6 +34,16 @@ function openDb(): Promise<IDBDatabase> {
         store.createIndex('studyId', 'studyId', { unique: false });
       }
     };
+  });
+}
+
+export async function deleteHitById(id: string): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
 }
 
