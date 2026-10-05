@@ -1,5 +1,11 @@
 Index your Lichess **study** comments by chess position and surface notes from **other chapters** when you land on the same board again (transpositions included).
 
+### Screenshots
+
+![Cross-chapter notes under the Comments tab](https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/lichess-position-notes/store/images/study-underboard.png)
+
+![Import study index and export JSON](https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/lichess-position-notes/store/images/study-index-toolbar.png)
+
 ### What you get
 
 - Panel under the comment box: **other chapters** at this position (one row per chapter, newest wins)

@@ -8,6 +8,7 @@
     "build:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export build",
     "build:lichess-position-notes": "pnpm --filter @userscripts/lichess-position-notes build",
     "verify:lpn:brave": "node scripts/verify-lpn-brave-cdp.mjs",
+    "capture:store:lpn": "node scripts/capture-lpn-store-images.mjs",
     "dev:lichess-position-notes": "pnpm --filter @userscripts/lichess-position-notes dev",
     "build:cursor-pace": "pnpm --filter @userscripts/cursor-spend-pace build",
     "dev:cursor-pace": "pnpm --filter @userscripts/cursor-spend-pace dev",
