@@ -10,7 +10,7 @@ export default defineConfig({
       entry: 'src/main.ts',
       userscript: {
         name: 'Lichess: Study position notes',
-        version: '1.0.2',
+        version: '1.0.3',
         author: 'pedro-mass',
         description:
           'Index your study comments by position (FEN) and show prior notes when you revisit the same board.',

@@ -163,6 +163,38 @@ export async function countAll(): Promise<number> {
   });
 }
 
+export async function deleteHitsForStudy(studyId: string): Promise<number> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    const req = store.index('studyId').getAll(studyId);
+    req.onsuccess = () => {
+      const rows = req.result as PositionNoteHit[];
+      for (const row of rows) store.delete(row.id);
+      resolve(rows.length);
+    };
+    req.onerror = () => reject(req.error);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function clearAllHits(): Promise<number> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    const req = store.count();
+    req.onsuccess = () => {
+      const n = req.result;
+      store.clear();
+      resolve(n);
+    };
+    req.onerror = () => reject(req.error);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 export async function exportJson(): Promise<string> {
   const db = await openDb();
   return new Promise((resolve, reject) => {

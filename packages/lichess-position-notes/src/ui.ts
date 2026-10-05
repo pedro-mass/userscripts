@@ -1,6 +1,8 @@
 import {
+  clearAllHits,
   countAll,
   countForStudy,
+  deleteHitsForStudy,
   exportJson,
   getByPositionKeyForStudy,
   upsertMany,
@@ -18,7 +20,7 @@ import { positionKeyFromFen } from './position-key';
 import type { PositionNoteHit } from './types';
 
 const PANEL_ID = 'lpn-position-notes-panel';
-const LPN_VERSION = '1.0.2';
+const LPN_VERSION = '1.0.3';
 const STATUS_CLEAR_MS = 4000;
 const ENSURE_BACKUP_MS = 3000;
 
@@ -211,6 +213,18 @@ function buildPanel(): HTMLElement {
     'Export JSON',
   ) as HTMLButtonElement;
   exportBtn.type = 'button';
+  const removeStudyBtn = el(
+    'button',
+    'button button-empty button-no-upper',
+    'Remove this study',
+  ) as HTMLButtonElement;
+  removeStudyBtn.type = 'button';
+  const clearAllBtn = el(
+    'button',
+    'button button-empty button-no-upper',
+    'Clear all notes',
+  ) as HTMLButtonElement;
+  clearAllBtn.type = 'button';
   const status = el('div', 'lpn-status');
 
   importBtn.addEventListener('click', async () => {
@@ -228,9 +242,10 @@ function buildPanel(): HTMLElement {
       await upsertMany(hits);
       window.dispatchEvent(new CustomEvent('lpn-db-changed'));
       await refreshStudyMeta(summary, studyId);
+      const inStudy = await countForStudy(studyId);
       setTransientStatus(
         status,
-        `Imported ${slots.length} notes from this study.`,
+        `Imported ${slots.length} from PGN · ${inStudy} in index`,
       );
       if (window.site?.analysis?.node?.fen) {
         currentKey = '';
@@ -256,7 +271,74 @@ function buildPanel(): HTMLElement {
     URL.revokeObjectURL(a.href);
   });
 
-  toolbar.append(importBtn, exportBtn);
+  removeStudyBtn.addEventListener('click', async () => {
+    const studyId = studyIdFromLocation();
+    if (!studyId) {
+      setTransientStatus(status, 'Not on a study page.');
+      return;
+    }
+    const inStudy = await countForStudy(studyId);
+    if (inStudy === 0) {
+      setTransientStatus(status, 'No notes indexed for this study.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `Remove all ${inStudy} indexed notes for this study? Export JSON first if you want a backup.`,
+      )
+    ) {
+      return;
+    }
+    removeStudyBtn.disabled = true;
+    try {
+      const removed = await deleteHitsForStudy(studyId);
+      window.dispatchEvent(new CustomEvent('lpn-db-changed'));
+      await refreshStudyMeta(summary, studyId);
+      setTransientStatus(status, `Removed ${removed} notes for this study.`);
+      currentKey = '';
+      refreshForCurrentFen(true);
+    } catch (e) {
+      setTransientStatus(
+        status,
+        e instanceof Error ? e.message : 'Remove failed.',
+      );
+    } finally {
+      removeStudyBtn.disabled = false;
+    }
+  });
+
+  clearAllBtn.addEventListener('click', async () => {
+    const total = await countAll();
+    if (total === 0) {
+      setTransientStatus(status, 'Index is already empty.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `Clear all ${total} notes from every study? This cannot be undone. Export JSON first if you want a backup.`,
+      )
+    ) {
+      return;
+    }
+    clearAllBtn.disabled = true;
+    try {
+      const removed = await clearAllHits();
+      window.dispatchEvent(new CustomEvent('lpn-db-changed'));
+      await refreshStudyMeta(summary, studyIdFromLocation());
+      setTransientStatus(status, `Cleared ${removed} notes from the index.`);
+      currentKey = '';
+      refreshForCurrentFen(true);
+    } catch (e) {
+      setTransientStatus(
+        status,
+        e instanceof Error ? e.message : 'Clear failed.',
+      );
+    } finally {
+      clearAllBtn.disabled = false;
+    }
+  });
+
+  toolbar.append(importBtn, exportBtn, removeStudyBtn, clearAllBtn);
   details.append(summary, toolbar, status);
   shadow.append(prior, details);
 

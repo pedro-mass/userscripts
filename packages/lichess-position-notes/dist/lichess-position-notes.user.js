@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      1.0.2
+// @version      1.0.3
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
@@ -171,6 +171,36 @@
       const req = tx.objectStore(STORE).count();
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
+    });
+  }
+  async function deleteHitsForStudy(studyId) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      const store = tx.objectStore(STORE);
+      const req = store.index("studyId").getAll(studyId);
+      req.onsuccess = () => {
+        const rows = req.result;
+        for (const row of rows) store.delete(row.id);
+        resolve(rows.length);
+      };
+      req.onerror = () => reject(req.error);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function clearAllHits() {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      const store = tx.objectStore(STORE);
+      const req = store.count();
+      req.onsuccess = () => {
+        const n2 = req.result;
+        store.clear();
+        resolve(n2);
+      };
+      req.onerror = () => reject(req.error);
+      tx.onerror = () => reject(tx.error);
     });
   }
   async function exportJson() {
@@ -3045,7 +3075,7 @@
     return dedupeNewestPerChapter(others);
   }
   const PANEL_ID = "lpn-position-notes-panel";
-  const LPN_VERSION = "1.0.2";
+  const LPN_VERSION = "1.0.3";
   const STATUS_CLEAR_MS = 4e3;
   const ENSURE_BACKUP_MS = 3e3;
   let currentKey = "";
@@ -3209,6 +3239,18 @@
       "Export JSON"
     );
     exportBtn.type = "button";
+    const removeStudyBtn = el(
+      "button",
+      "button button-empty button-no-upper",
+      "Remove this study"
+    );
+    removeStudyBtn.type = "button";
+    const clearAllBtn = el(
+      "button",
+      "button button-empty button-no-upper",
+      "Clear all notes"
+    );
+    clearAllBtn.type = "button";
     const status = el("div", "lpn-status");
     importBtn.addEventListener("click", async () => {
       var _a, _b, _c;
@@ -3226,9 +3268,10 @@
         await upsertMany(hits);
         window.dispatchEvent(new CustomEvent("lpn-db-changed"));
         await refreshStudyMeta(summary, studyId);
+        const inStudy = await countForStudy(studyId);
         setTransientStatus(
           status,
-          `Imported ${slots.length} notes from this study.`
+          `Imported ${slots.length} from PGN · ${inStudy} in index`
         );
         if ((_c = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.node) == null ? void 0 : _c.fen) {
           currentKey = "";
@@ -3252,7 +3295,68 @@
       a.click();
       URL.revokeObjectURL(a.href);
     });
-    toolbar.append(importBtn, exportBtn);
+    removeStudyBtn.addEventListener("click", async () => {
+      const studyId = studyIdFromLocation();
+      if (!studyId) {
+        setTransientStatus(status, "Not on a study page.");
+        return;
+      }
+      const inStudy = await countForStudy(studyId);
+      if (inStudy === 0) {
+        setTransientStatus(status, "No notes indexed for this study.");
+        return;
+      }
+      if (!window.confirm(
+        `Remove all ${inStudy} indexed notes for this study? Export JSON first if you want a backup.`
+      )) {
+        return;
+      }
+      removeStudyBtn.disabled = true;
+      try {
+        const removed = await deleteHitsForStudy(studyId);
+        window.dispatchEvent(new CustomEvent("lpn-db-changed"));
+        await refreshStudyMeta(summary, studyId);
+        setTransientStatus(status, `Removed ${removed} notes for this study.`);
+        currentKey = "";
+        refreshForCurrentFen(true);
+      } catch (e2) {
+        setTransientStatus(
+          status,
+          e2 instanceof Error ? e2.message : "Remove failed."
+        );
+      } finally {
+        removeStudyBtn.disabled = false;
+      }
+    });
+    clearAllBtn.addEventListener("click", async () => {
+      const total = await countAll();
+      if (total === 0) {
+        setTransientStatus(status, "Index is already empty.");
+        return;
+      }
+      if (!window.confirm(
+        `Clear all ${total} notes from every study? This cannot be undone. Export JSON first if you want a backup.`
+      )) {
+        return;
+      }
+      clearAllBtn.disabled = true;
+      try {
+        const removed = await clearAllHits();
+        window.dispatchEvent(new CustomEvent("lpn-db-changed"));
+        await refreshStudyMeta(summary, studyIdFromLocation());
+        setTransientStatus(status, `Cleared ${removed} notes from the index.`);
+        currentKey = "";
+        refreshForCurrentFen(true);
+      } catch (e2) {
+        setTransientStatus(
+          status,
+          e2 instanceof Error ? e2.message : "Clear failed."
+        );
+      } finally {
+        clearAllBtn.disabled = false;
+      }
+    });
+    toolbar.append(importBtn, exportBtn, removeStudyBtn, clearAllBtn);
     details.append(summary, toolbar, status);
     shadow.append(prior, details);
     void refreshStudyMeta(summary, studyIdFromLocation());
