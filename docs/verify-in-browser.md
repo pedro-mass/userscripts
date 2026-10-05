@@ -17,9 +17,11 @@ Skipping (1) wastes Pedro’s time on packaging bugs that are really DOM, timing
 When changing behavior in `packages/*` (especially DOM, storage, network, or mount logic):
 
 1. **Build** the package (`pnpm --filter <pkg> build`) so `dist/*.user.js` matches source.
-2. **Verify in the Cursor in-app browser** on the real URL (`@match` target). Tampermonkey does **not** run there — inject the bundle:
-   - Prefer `Page.addScriptToEvaluateOnNewDocument` + navigation, or CDP `Runtime.evaluate` / a `<script>` blob after load.
-   - Exercise the user-visible path (open tab, click control, check IndexedDB, etc.).
+2. **Verify on the real URL** (`@match` target). Tampermonkey does **not** run in the Cursor in-app browser — inject the built bundle:
+   - **Automated (preferred):** `node scripts/verify-lichess-lpn-inject.mjs 'https://lichess.org/study/<id>/<chapter>'` (after `pnpm --filter @userscripts/lichess-position-notes build`, which writes `dist/inject.js`).
+   - **In-app browser:** after `node scripts/make-lpn-cdp-chunks.mjs`, run each `/tmp/lpn-chunk-expr-*.txt` via CDP `Runtime.evaluate`, then `/tmp/lpn-cdp-final.js` with `awaitPromise: true`. (GitHub `fetch` is blocked by Lichess CSP.)
+   - Private studies: headless Playwright without a saved `storageState` exits `2` with `study_not_found_guest`; use logged-in in-app browser or TM.
+   - Exercise the user-visible path (Comments tab, panel mount, import click if in scope).
 3. **Demo for Pedro** in the same slice: short summary, what URL you used, screenshot or snapshot of the working UI, and what to click to reproduce. “Reload Tampermonkey” is a **Pedro** step after agent proof, not a substitute for step 2.
 4. **Only then** mark the slice done and commit.
 
