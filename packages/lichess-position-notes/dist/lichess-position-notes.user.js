@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      0.1.8
+// @version      0.1.9
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
@@ -45,11 +45,31 @@
       };
     });
   }
-  async function upsertHit(hit) {
+  async function replaceLiveNodeHit(hit) {
     const db = await openDb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).put(hit);
+      const store = tx.objectStore(STORE);
+      const livePrefix = `live|${hit.studyId}|${hit.chapterId}|${hit.path}`;
+      const req = store.index("positionKey").getAll(hit.positionKey);
+      req.onsuccess = () => {
+        const rows = req.result;
+        for (const row of rows) {
+          if (row.studyId !== hit.studyId || row.chapterId !== hit.chapterId) {
+            continue;
+          }
+          if (row.id === hit.id) continue;
+          if (row.id.startsWith(livePrefix)) {
+            store.delete(row.id);
+            continue;
+          }
+          if (row.source === "import" && row.path === "" && row.ply === hit.ply) {
+            store.delete(row.id);
+          }
+        }
+        store.put(hit);
+      };
+      req.onerror = () => reject(req.error);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -143,7 +163,7 @@
     const san = analysis.node.san;
     const chapterUrl = `https://lichess.org/study/${studyId}/${chapterId}`;
     const onMainline = true;
-    const id = `live|${studyId}|${chapterId}|${path}|${trimmed}`;
+    const id = `live|${studyId}|${chapterId}|${path}`;
     return {
       id,
       positionKey,
@@ -199,7 +219,9 @@
             if (hit) {
               hit.chapterId = msg.d.ch ?? hit.chapterId;
               hit.path = msg.d.path ?? hit.path;
-              void upsertHit(hit);
+              void replaceLiveNodeHit(hit).then(() => {
+                window.dispatchEvent(new CustomEvent("lpn-db-changed"));
+              });
             }
           }
         } catch {
@@ -2902,7 +2924,7 @@
     return all;
   }
   const PANEL_ID = "lpn-position-notes-panel";
-  const LPN_VERSION = "0.1.8";
+  const LPN_VERSION = "0.1.9";
   const STATUS_CLEAR_MS = 4e3;
   const ENSURE_BACKUP_MS = 3e3;
   let currentKey = "";
@@ -2948,16 +2970,9 @@
   }
   function isCurrentChapterNote(hit) {
     var _a, _b, _c;
-    const analysis = (_a = window.site) == null ? void 0 : _a.analysis;
-    const study = analysis == null ? void 0 : analysis.study;
+    const study = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.study;
     if (!study) return false;
-    const hereStudy = (_b = study.data) == null ? void 0 : _b.id;
-    const hereChapter = study.vm.chapterId;
-    if (hit.studyId !== hereStudy || hit.chapterId !== hereChapter) return false;
-    const herePath = analysis.path;
-    if (hit.path && herePath) return hit.path === herePath;
-    const ply = (_c = analysis.node) == null ? void 0 : _c.ply;
-    return ply !== void 0 && hit.ply === ply;
+    return hit.studyId === ((_c = study.data) == null ? void 0 : _c.id) && hit.chapterId === study.vm.chapterId;
   }
   function hitsForDisplay(hits) {
     return hits.filter((hit) => !isCurrentChapterNote(hit));
@@ -3211,6 +3226,10 @@
   }
   function startUi() {
     startPanelWatch();
+    window.addEventListener("lpn-db-changed", () => {
+      currentKey = "";
+      refreshForCurrentFen(true);
+    });
     void waitForAnalysis().then(() => {
       var _a, _b, _c, _d, _e;
       const fen = (_c = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.node) == null ? void 0 : _c.fen;

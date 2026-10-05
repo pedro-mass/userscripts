@@ -42,7 +42,7 @@ export function liveHitFromAnalysis(text: string): PositionNoteHit | null {
   const chapterUrl = `https://lichess.org/study/${studyId}/${chapterId}`;
   const onMainline = true; // refined when we can read tree; ply hash still helps mainline
 
-  const id = `live|${studyId}|${chapterId}|${path}|${trimmed}`;
+  const id = `live|${studyId}|${chapterId}|${path}`;
 
   return {
     id,

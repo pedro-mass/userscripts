@@ -39,6 +39,37 @@ export async function upsertHit(hit: PositionNoteHit): Promise<void> {
   });
 }
 
+/** One live row per node; drop stale text-keyed live rows and import dupes at this ply. */
+export async function replaceLiveNodeHit(hit: PositionNoteHit): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    const livePrefix = `live|${hit.studyId}|${hit.chapterId}|${hit.path}`;
+    const req = store.index('positionKey').getAll(hit.positionKey);
+    req.onsuccess = () => {
+      const rows = req.result as PositionNoteHit[];
+      for (const row of rows) {
+        if (row.studyId !== hit.studyId || row.chapterId !== hit.chapterId) {
+          continue;
+        }
+        if (row.id === hit.id) continue;
+        if (row.id.startsWith(livePrefix)) {
+          store.delete(row.id);
+          continue;
+        }
+        if (row.source === 'import' && row.path === '' && row.ply === hit.ply) {
+          store.delete(row.id);
+        }
+      }
+      store.put(hit);
+    };
+    req.onerror = () => reject(req.error);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 export async function upsertMany(hits: PositionNoteHit[]): Promise<void> {
   const db = await openDb();
   return new Promise((resolve, reject) => {

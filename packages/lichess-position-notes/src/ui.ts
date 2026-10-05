@@ -10,7 +10,7 @@ import { positionKeyFromFen } from './position-key';
 import type { PositionNoteHit } from './types';
 
 const PANEL_ID = 'lpn-position-notes-panel';
-const LPN_VERSION = '0.1.8';
+const LPN_VERSION = '0.1.9';
 const STATUS_CLEAR_MS = 4000;
 const ENSURE_BACKUP_MS = 3000;
 
@@ -67,20 +67,13 @@ async function refreshStudyMeta(
   }
 }
 
+/** List is for other chapters only; this node is already in the Lichess comment box. */
 function isCurrentChapterNote(hit: PositionNoteHit): boolean {
-  const analysis = window.site?.analysis;
-  const study = analysis?.study;
+  const study = window.site?.analysis?.study;
   if (!study) return false;
-
-  const hereStudy = study.data?.id;
-  const hereChapter = study.vm.chapterId;
-  if (hit.studyId !== hereStudy || hit.chapterId !== hereChapter) return false;
-
-  const herePath = analysis.path;
-  if (hit.path && herePath) return hit.path === herePath;
-
-  const ply = analysis.node?.ply;
-  return ply !== undefined && hit.ply === ply;
+  return (
+    hit.studyId === study.data?.id && hit.chapterId === study.vm.chapterId
+  );
 }
 
 function hitsForDisplay(hits: PositionNoteHit[]): PositionNoteHit[] {
@@ -377,6 +370,11 @@ function startPanelWatch(): void {
 
 export function startUi(): void {
   startPanelWatch();
+
+  window.addEventListener('lpn-db-changed', () => {
+    currentKey = '';
+    refreshForCurrentFen(true);
+  });
 
   void waitForAnalysis().then(() => {
     const fen = window.site?.analysis?.node?.fen;

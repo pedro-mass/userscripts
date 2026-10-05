@@ -1,4 +1,4 @@
-import { upsertHit } from './db';
+import { replaceLiveNodeHit } from './db';
 import { liveHitFromAnalysis } from './lichess';
 
 let hooked = false;
@@ -22,7 +22,9 @@ export function installLiveCapture(): void {
           if (hit) {
             hit.chapterId = msg.d.ch ?? hit.chapterId;
             hit.path = msg.d.path ?? hit.path;
-            void upsertHit(hit);
+            void replaceLiveNodeHit(hit).then(() => {
+              window.dispatchEvent(new CustomEvent('lpn-db-changed'));
+            });
           }
         }
       } catch {
