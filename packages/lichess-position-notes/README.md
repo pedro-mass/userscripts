@@ -29,6 +29,6 @@ Build: `pnpm --filter @userscripts/lichess-position-notes build` → `dist/liche
 
 Test: `pnpm --filter @userscripts/lichess-position-notes test`.
 
-**Verify (recommended):** Brave + Tampermonkey on a real study chapter. Optional CDP helper: `scripts/verify-lpn-brave-cdp.mjs` (see repo `scripts/`). In-app Cursor browser is a poor stand-in for TM.
+**Verify (recommended):** Brave + Tampermonkey on a real study chapter. Script matrix: [docs/lichess-position-notes-verify.md](../../docs/lichess-position-notes-verify.md) · `pnpm verify:lpn:brave`.
 
 Research notes: PAM `.work/plans/lichess-position-notes/RESEARCH.md`.

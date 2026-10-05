@@ -28,7 +28,7 @@ const final = `(() => {
     const s = document.createElement('script');
     s.textContent = code;
     document.head.appendChild(s);
-    return new Promise((r) => setTimeout(r, 2500)).then(() => ({
+    return new Promise((r) => setTimeout(r, 4500)).then(() => ({
       ok: true,
       codeLen: code.length,
       panel: Boolean(document.getElementById('lpn-position-notes-panel')),
