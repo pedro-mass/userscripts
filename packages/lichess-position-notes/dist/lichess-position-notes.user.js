@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      0.1.10
+// @version      0.1.11
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
@@ -2944,10 +2944,11 @@
     return all;
   }
   const PANEL_ID = "lpn-position-notes-panel";
-  const LPN_VERSION = "0.1.10";
+  const LPN_VERSION = "0.1.11";
   const STATUS_CLEAR_MS = 4e3;
   const ENSURE_BACKUP_MS = 3e3;
   let currentKey = "";
+  let currentChapterId = "";
   let statusTimer;
   let panelBuilt = false;
   let ensureQueued = false;
@@ -3051,13 +3052,17 @@
     heading.classList.remove("lpn-prior-heading--quiet");
   }
   async function refreshForFen(fen, force = false) {
+    var _a, _b, _c;
     const key = positionKeyFromFen(fen);
+    const chapterId = ((_c = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.study) == null ? void 0 : _c.vm.chapterId) ?? "";
     const token = ++refreshToken;
     const hits = await getByPositionKey(key);
     if (token !== refreshToken) return;
     if (!document.getElementById(PANEL_ID)) return;
-    const repaint = force || key !== currentKey || listNeedsPaint(hits);
+    const chapterChanged = chapterId !== currentChapterId;
+    const repaint = force || key !== currentKey || chapterChanged || listNeedsPaint(hits);
     currentKey = key;
+    currentChapterId = chapterId;
     if (!repaint) return;
     paintHitList(hits);
     requestAnimationFrame(() => {
@@ -3265,6 +3270,7 @@
     startPanelWatch();
     window.addEventListener("lpn-db-changed", () => {
       currentKey = "";
+      currentChapterId = "";
       refreshForCurrentFen(true);
     });
     void waitForAnalysis().then(() => {

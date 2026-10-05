@@ -17,11 +17,12 @@ import { positionKeyFromFen } from './position-key';
 import type { PositionNoteHit } from './types';
 
 const PANEL_ID = 'lpn-position-notes-panel';
-const LPN_VERSION = '0.1.10';
+const LPN_VERSION = '0.1.11';
 const STATUS_CLEAR_MS = 4000;
 const ENSURE_BACKUP_MS = 3000;
 
 let currentKey = '';
+let currentChapterId = '';
 let statusTimer: number | undefined;
 let panelBuilt = false;
 let ensureQueued = false;
@@ -152,13 +153,17 @@ function paintHitList(hits: PositionNoteHit[]): void {
 
 async function refreshForFen(fen: string, force = false): Promise<void> {
   const key = positionKeyFromFen(fen);
+  const chapterId = window.site?.analysis?.study?.vm.chapterId ?? '';
   const token = ++refreshToken;
   const hits = await getByPositionKey(key);
   if (token !== refreshToken) return;
   if (!document.getElementById(PANEL_ID)) return;
 
-  const repaint = force || key !== currentKey || listNeedsPaint(hits);
+  const chapterChanged = chapterId !== currentChapterId;
+  const repaint =
+    force || key !== currentKey || chapterChanged || listNeedsPaint(hits);
   currentKey = key;
+  currentChapterId = chapterId;
   if (!repaint) return;
 
   paintHitList(hits);
@@ -400,6 +405,7 @@ export function startUi(): void {
 
   window.addEventListener('lpn-db-changed', () => {
     currentKey = '';
+    currentChapterId = '';
     refreshForCurrentFen(true);
   });
 
