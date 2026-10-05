@@ -1,11 +1,11 @@
 import {
-  collapseStudyPositionRows,
   countAll,
   countForStudy,
   exportJson,
-  getByPositionKey,
+  getByPositionKeyForStudy,
   upsertMany,
 } from './db';
+import { collapseHitsToSlots } from './slot-id';
 import { hitsFromStudyPgn } from './ingest-pgn';
 import {
   fetchStudyPgn,
@@ -134,9 +134,12 @@ function paintHitList(hits: PositionNoteHit[]): void {
 
 async function refreshForFen(fen: string, force = false): Promise<void> {
   const key = positionKeyFromFen(fen);
+  const studyId = studyIdFromLocation() ?? '';
   const chapterId = window.site?.analysis?.study?.vm.chapterId ?? '';
   const token = ++refreshToken;
-  const hits = await getByPositionKey(key);
+  const hits = studyId
+    ? await getByPositionKeyForStudy(key, studyId)
+    : [];
   if (token !== refreshToken) return;
   if (!document.getElementById(PANEL_ID)) return;
 
@@ -221,13 +224,13 @@ function buildPanel(): HTMLElement {
     try {
       const pgn = await fetchStudyPgn(studyId);
       const hits = hitsFromStudyPgn(pgn, studyId);
+      const slots = collapseHitsToSlots(hits);
       await upsertMany(hits);
-      await collapseStudyPositionRows(studyId);
       window.dispatchEvent(new CustomEvent('lpn-db-changed'));
       await refreshStudyMeta(summary, studyId);
       setTransientStatus(
         status,
-        `Imported ${hits.length} notes from this study.`,
+        `Imported ${slots.length} notes from this study.`,
       );
       if (window.site?.analysis?.node?.fen) {
         currentKey = '';

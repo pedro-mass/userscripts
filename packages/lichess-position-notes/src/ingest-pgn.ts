@@ -5,6 +5,7 @@ import { makeSanAndPlay, parseSan } from 'chessops/san';
 import { makeUci } from 'chessops/util';
 import { humanTextFromPgnComment } from './comment-text';
 import { positionKeyFromFen } from './position-key';
+import { withSlotId } from './slot-id';
 import type { PositionNoteHit } from './types';
 
 interface WalkState {
@@ -77,9 +78,8 @@ function makeHit(
   const positionUrl = fields.onMainline
     ? `${meta.chapterUrl}#${fields.ply}`
     : meta.chapterUrl;
-  const dedupe = `${meta.studyId}|${meta.chapterId}|${fields.uciTrail.join(',')}|${text}`;
-  return {
-    id: dedupe,
+  const hit: PositionNoteHit = {
+    id: '',
     positionKey,
     fenFull: fields.fenFull,
     text,
@@ -102,6 +102,7 @@ function makeHit(
     importedAt: now,
     updatedAt: now,
   };
+  return withSlotId(hit);
 }
 
 function pushComments(

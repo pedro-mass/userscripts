@@ -1,5 +1,7 @@
-import { deleteHitById, liveNodeId, replaceLiveNodeHit } from './db';
+import { deleteHitById, upsertSlotHit } from './db';
 import { liveHitFromAnalysis, waitForAnalysis } from './lichess';
+import { positionKeyFromFen } from './position-key';
+import { slotId } from './slot-id';
 
 let wsHooked = false;
 let studyHooked = false;
@@ -23,8 +25,10 @@ async function onSetComment(data: {
   const trimmed = (data.text ?? '').trim();
 
   if (!trimmed) {
-    if (chapterId && path) {
-      await deleteHitById(liveNodeId(studyId, chapterId, path));
+    const fen = analysis?.node?.fen;
+    if (chapterId && fen) {
+      const positionKey = positionKeyFromFen(fen);
+      await deleteHitById(slotId(studyId, chapterId, positionKey));
       notifyDbChanged();
     }
     return;
@@ -34,7 +38,7 @@ async function onSetComment(data: {
   if (!hit) return;
   hit.chapterId = chapterId || hit.chapterId;
   hit.path = path || hit.path;
-  await replaceLiveNodeHit(hit);
+  await upsertSlotHit(hit);
   notifyDbChanged();
 }
 

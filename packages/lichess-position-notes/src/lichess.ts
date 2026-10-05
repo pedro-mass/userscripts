@@ -1,6 +1,6 @@
-import { liveNodeId } from './db';
 import type { PositionNoteHit } from './types';
 import { positionKeyFromFen } from './position-key';
+import { withSlotId } from './slot-id';
 
 export function studyIdFromLocation(): string | null {
   const m = location.pathname.match(/\/study\/([A-Za-z0-9]{8})/);
@@ -45,10 +45,8 @@ export function liveHitFromAnalysis(text: string): PositionNoteHit | null {
   const chapterUrl = `https://lichess.org/study/${studyId}/${chapterId}`;
   const onMainline = true; // refined when we can read tree; ply hash still helps mainline
 
-  const id = liveNodeId(studyId, chapterId, path);
-
-  return {
-    id,
+  const hit: PositionNoteHit = {
+    id: '',
     positionKey,
     fenFull,
     text: trimmed,
@@ -67,6 +65,7 @@ export function liveHitFromAnalysis(text: string): PositionNoteHit | null {
     importedAt: Date.now(),
     updatedAt: Date.now(),
   };
+  return withSlotId(hit);
 }
 
 export async function jumpToHit(hit: PositionNoteHit): Promise<void> {

@@ -18,11 +18,63 @@
 (function () {
   'use strict';
 
+  function slotId(studyId, chapterId, positionKey) {
+    return `${studyId}|${chapterId}|${positionKey}`;
+  }
+  function withSlotId(hit) {
+    return {
+      ...hit,
+      id: slotId(hit.studyId, hit.chapterId, hit.positionKey)
+    };
+  }
+  function mergeHitsForSlot(a, b) {
+    const left = withSlotId(a);
+    const right = withSlotId(b);
+    if (right.updatedAt > left.updatedAt) return right;
+    if (left.updatedAt > right.updatedAt) return left;
+    if (left.source === "live") return left;
+    if (right.source === "live") return right;
+    return left;
+  }
+  function collapseHitsToSlots(hits) {
+    const map = /* @__PURE__ */ new Map();
+    for (const hit of hits) {
+      const id = slotId(hit.studyId, hit.chapterId, hit.positionKey);
+      const normalized = withSlotId(hit);
+      const prev = map.get(id);
+      map.set(id, prev ? mergeHitsForSlot(prev, normalized) : normalized);
+    }
+    return [...map.values()];
+  }
   const DB_NAME = "lichess-position-notes";
   const STORE = "hits";
-  const VERSION = 2;
-  function liveNodeId(studyId, chapterId, path) {
-    return `live|${studyId}|${chapterId}|${path}`;
+  const VERSION = 3;
+  function ensureIndexes(store, oldVersion) {
+    if (!store.indexNames.contains("positionKey")) {
+      store.createIndex("positionKey", "positionKey", { unique: false });
+    }
+    if (!store.indexNames.contains("studyChapterPath")) {
+      store.createIndex("studyChapterPath", ["studyId", "chapterId", "path"], {
+        unique: false
+      });
+    }
+    if (oldVersion < 2 && !store.indexNames.contains("studyId")) {
+      store.createIndex("studyId", "studyId", { unique: false });
+    }
+    if (!store.indexNames.contains("positionKeyStudyId")) {
+      store.createIndex("positionKeyStudyId", ["positionKey", "studyId"], {
+        unique: false
+      });
+    }
+  }
+  function migrateRowsToSlots(store) {
+    const getAll = store.getAll();
+    getAll.onsuccess = () => {
+      const rows = getAll.result;
+      const merged = collapseHitsToSlots(rows);
+      store.clear();
+      for (const hit of merged) store.put(hit);
+    };
   }
   function openDb() {
     return new Promise((resolve, reject) => {
@@ -31,16 +83,15 @@
       req.onsuccess = () => resolve(req.result);
       req.onupgradeneeded = (event) => {
         const db = req.result;
+        const oldVersion = event.oldVersion;
         let store;
         if (!db.objectStoreNames.contains(STORE)) {
           store = db.createObjectStore(STORE, { keyPath: "id" });
-          store.createIndex("positionKey", "positionKey", { unique: false });
-          store.createIndex("studyId", "studyId", { unique: false });
+          ensureIndexes(store, oldVersion);
         } else {
           store = req.transaction.objectStore(STORE);
-        }
-        if (event.oldVersion < 2 && !store.indexNames.contains("studyId")) {
-          store.createIndex("studyId", "studyId", { unique: false });
+          ensureIndexes(store, oldVersion);
+          if (oldVersion > 0 && oldVersion < 3) migrateRowsToSlots(store);
         }
       };
     });
@@ -54,70 +105,53 @@
       tx.onerror = () => reject(tx.error);
     });
   }
-  async function replaceLiveNodeHit(hit) {
+  async function upsertSlotHit(hit) {
+    const normalized = withSlotId(hit);
     const db = await openDb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, "readwrite");
       const store = tx.objectStore(STORE);
-      const req = store.index("positionKey").getAll(hit.positionKey);
-      req.onsuccess = () => {
-        const rows = req.result;
-        for (const row of rows) {
-          if (row.studyId !== hit.studyId || row.chapterId !== hit.chapterId) {
-            continue;
-          }
-          if (row.id === hit.id) continue;
-          if (row.positionKey === hit.positionKey) {
-            store.delete(row.id);
-          }
-        }
-        store.put(hit);
+      const getReq = store.get(normalized.id);
+      getReq.onsuccess = () => {
+        const existing = getReq.result;
+        store.put(
+          existing ? mergeHitsForSlot(existing, normalized) : normalized
+        );
       };
-      req.onerror = () => reject(req.error);
+      getReq.onerror = () => reject(getReq.error);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
   }
   async function upsertMany(hits) {
+    const collapsed = collapseHitsToSlots(hits);
+    if (collapsed.length === 0) return;
     const db = await openDb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, "readwrite");
       const store = tx.objectStore(STORE);
-      for (const hit of hits) store.put(hit);
+      for (const hit of collapsed) {
+        const getReq = store.get(hit.id);
+        getReq.onsuccess = () => {
+          const existing = getReq.result;
+          store.put(existing ? mergeHitsForSlot(existing, hit) : hit);
+        };
+        getReq.onerror = () => reject(getReq.error);
+      }
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
   }
-  async function collapseStudyPositionRows(studyId) {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      const store = tx.objectStore(STORE);
-      const req = store.index("studyId").getAll(studyId);
-      req.onsuccess = () => {
-        const rows = req.result;
-        const keep = /* @__PURE__ */ new Map();
-        for (const row of rows) {
-          const key = `${row.positionKey}\0${row.chapterId}`;
-          const prev = keep.get(key);
-          if (!prev || row.updatedAt > prev.updatedAt) keep.set(key, row);
-        }
-        const keepIds = new Set(keep.values().map((h) => h.id));
-        for (const row of rows) {
-          if (!keepIds.has(row.id)) store.delete(row.id);
-        }
-      };
-      req.onerror = () => reject(req.error);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-  async function getByPositionKey(positionKey) {
+  async function getByPositionKeyForStudy(positionKey, studyId) {
     const db = await openDb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, "readonly");
-      const req = tx.objectStore(STORE).index("positionKey").getAll(positionKey);
-      req.onsuccess = () => resolve(req.result.sort((a, b) => b.updatedAt - a.updatedAt));
+      const req = tx.objectStore(STORE).index("positionKeyStudyId").getAll([positionKey, studyId]);
+      req.onsuccess = () => resolve(
+        req.result.sort(
+          (a, b) => b.updatedAt - a.updatedAt
+        )
+      );
       req.onerror = () => reject(req.error);
     });
   }
@@ -192,9 +226,8 @@
     const san = analysis.node.san;
     const chapterUrl = `https://lichess.org/study/${studyId}/${chapterId}`;
     const onMainline = true;
-    const id = liveNodeId(studyId, chapterId, path);
-    return {
-      id,
+    const hit = {
+      id: "",
       positionKey,
       fenFull,
       text: trimmed,
@@ -213,6 +246,7 @@
       importedAt: Date.now(),
       updatedAt: Date.now()
     };
+    return withSlotId(hit);
   }
   async function jumpToHit(hit) {
     var _a, _b, _c, _d, _e, _f;
@@ -239,7 +273,7 @@
     window.dispatchEvent(new CustomEvent("lpn-db-changed"));
   }
   async function onSetComment(data) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     const study = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.study;
     const analysis = (_c = window.site) == null ? void 0 : _c.analysis;
     const studyId = (_d = study == null ? void 0 : study.data) == null ? void 0 : _d.id;
@@ -248,8 +282,10 @@
     const path = data.path ?? (analysis == null ? void 0 : analysis.path) ?? "";
     const trimmed = (data.text ?? "").trim();
     if (!trimmed) {
-      if (chapterId && path) {
-        await deleteHitById(liveNodeId(studyId, chapterId, path));
+      const fen = (_e = analysis == null ? void 0 : analysis.node) == null ? void 0 : _e.fen;
+      if (chapterId && fen) {
+        const positionKey = positionKeyFromFen(fen);
+        await deleteHitById(slotId(studyId, chapterId, positionKey));
         notifyDbChanged();
       }
       return;
@@ -258,7 +294,7 @@
     if (!hit) return;
     hit.chapterId = chapterId || hit.chapterId;
     hit.path = path || hit.path;
-    await replaceLiveNodeHit(hit);
+    await upsertSlotHit(hit);
     notifyDbChanged();
   }
   function hookWebSocketSend() {
@@ -2911,9 +2947,8 @@
     if (!text) return null;
     const positionKey = positionKeyFromFen(fields.fenFull);
     const positionUrl = fields.onMainline ? `${meta.chapterUrl}#${fields.ply}` : meta.chapterUrl;
-    const dedupe = `${meta.studyId}|${meta.chapterId}|${fields.uciTrail.join(",")}|${text}`;
-    return {
-      id: dedupe,
+    const hit = {
+      id: "",
       positionKey,
       fenFull: fields.fenFull,
       text,
@@ -2936,6 +2971,7 @@
       importedAt: now,
       updatedAt: now
     };
+    return withSlotId(hit);
   }
   function pushComments(meta, state, san, raws, now, out) {
     for (const raw of raws) {
@@ -3105,9 +3141,10 @@
   async function refreshForFen(fen, force = false) {
     var _a, _b, _c;
     const key = positionKeyFromFen(fen);
+    const studyId = studyIdFromLocation() ?? "";
     const chapterId = ((_c = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.study) == null ? void 0 : _c.vm.chapterId) ?? "";
     const token = ++refreshToken;
-    const hits = await getByPositionKey(key);
+    const hits = studyId ? await getByPositionKeyForStudy(key, studyId) : [];
     if (token !== refreshToken) return;
     if (!document.getElementById(PANEL_ID)) return;
     const chapterChanged = chapterId !== currentChapterId;
@@ -3185,13 +3222,13 @@
       try {
         const pgn = await fetchStudyPgn(studyId);
         const hits = hitsFromStudyPgn(pgn, studyId);
+        const slots = collapseHitsToSlots(hits);
         await upsertMany(hits);
-        await collapseStudyPositionRows(studyId);
         window.dispatchEvent(new CustomEvent("lpn-db-changed"));
         await refreshStudyMeta(summary, studyId);
         setTransientStatus(
           status,
-          `Imported ${hits.length} notes from this study.`
+          `Imported ${slots.length} notes from this study.`
         );
         if ((_c = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.node) == null ? void 0 : _c.fen) {
           currentKey = "";

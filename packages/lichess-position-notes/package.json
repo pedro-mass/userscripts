@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && node ../../scripts/strip-userscript-header.mjs",
-    "test": "node --import tsx --test src/display-hits.test.ts",
+    "test": "node --import tsx --test src/display-hits.test.ts src/slot-id.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
