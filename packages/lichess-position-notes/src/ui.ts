@@ -14,10 +14,16 @@ const STATUS_CLEAR_MS = 4000;
 const ENSURE_BACKUP_MS = 3000;
 
 let currentKey = '';
+let cachedHits: PositionNoteHit[] = [];
 let statusTimer: number | undefined;
 let panelBuilt = false;
 let ensureQueued = false;
 let underboardObserver: MutationObserver | null = null;
+let listRepairObserver: MutationObserver | null = null;
+
+function panelRoot(panel: HTMLElement): ShadowRoot | HTMLElement {
+  return panel.shadowRoot ?? panel;
+}
 
 function el(tag: string, className?: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
@@ -65,8 +71,10 @@ async function renderPanel(hits: PositionNoteHit[]): Promise<void> {
   const panel = document.getElementById(PANEL_ID);
   if (!panel) return;
 
-  const list = panel.querySelector<HTMLElement>('.lpn-list');
-  const heading = panel.querySelector('.lpn-prior-heading');
+  cachedHits = hits;
+  const root = panelRoot(panel);
+  const list = root.querySelector<HTMLElement>('.lpn-list');
+  const heading = root.querySelector('.lpn-prior-heading');
   if (!list || !heading) return;
 
   if (hits.length === 0) {
@@ -114,37 +122,62 @@ async function renderPanel(hits: PositionNoteHit[]): Promise<void> {
   }
 }
 
-async function refreshForFen(fen: string): Promise<void> {
+async function refreshForFen(fen: string, force = false): Promise<void> {
   const key = positionKeyFromFen(fen);
-  if (key === currentKey) return;
-  currentKey = key;
+  if (!force && key === currentKey) return;
   const hits = await getByPositionKey(key);
+  if (!document.getElementById(PANEL_ID)) return;
+  currentKey = key;
   await renderPanel(hits);
 }
 
-function injectStyles(): void {
-  if (document.getElementById('lpn-styles')) return;
-  const style = document.createElement('style');
-  style.id = 'lpn-styles';
-  style.textContent = `
-    #${PANEL_ID} { margin: 0.65rem 0 0; padding: 0; border: 0; }
-    #${PANEL_ID} .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0.5rem 0 0.35rem; }
-    #${PANEL_ID} .lpn-prior-heading--quiet { font-weight: normal; opacity: 0.75; }
-    #${PANEL_ID} .lpn-hit { margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--border, #333); }
-    #${PANEL_ID} .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; }
-    #${PANEL_ID} .lpn-hit-text { white-space: pre-wrap; font-size: 0.9rem; }
-    #${PANEL_ID} .lpn-meta { margin-top: 0.75rem; font-size: 0.8rem; opacity: 0.9; }
-    #${PANEL_ID} .lpn-meta summary { cursor: pointer; user-select: none; }
-    #${PANEL_ID} .lpn-toolbar { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.5rem 0 0.25rem; }
-    #${PANEL_ID} .lpn-status { min-height: 1.1em; margin-top: 0.25rem; opacity: 0.85; }
+function refreshForCurrentFen(force = false): void {
+  const fen = window.site?.analysis?.node?.fen;
+  if (fen) void refreshForFen(fen, force);
+}
+
+function panelStyleText(): string {
+  return `
+    :host { display: block; margin: 0.65rem 0 0; padding: 0; border: 0; color: inherit; }
+    .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0.5rem 0 0.35rem; }
+    .lpn-prior-heading--quiet { font-weight: normal; opacity: 0.75; }
+    .lpn-hit { margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--border, #333); }
+    .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; }
+    .lpn-hit-text { white-space: pre-wrap; font-size: 0.9rem; }
+    .lpn-meta { margin-top: 0.75rem; font-size: 0.8rem; opacity: 0.9; }
+    .lpn-meta summary { cursor: pointer; user-select: none; }
+    .lpn-toolbar { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.5rem 0 0.25rem; }
+    .lpn-status { min-height: 1.1em; margin-top: 0.25rem; opacity: 0.85; }
+    .button { cursor: pointer; font: inherit; padding: 0.35em 0.65em; border-radius: 3px; border: 1px solid var(--border, #555); background: var(--bg-box, #2a2a2a); color: inherit; }
+    .button-empty { background: transparent; }
+    .button-no-upper { text-transform: none; }
   `;
-  document.head.appendChild(style);
+}
+
+function attachListRepairObserver(panel: HTMLElement): void {
+  const root = panelRoot(panel);
+  const list = root.querySelector('.lpn-list');
+  if (!list || listRepairObserver) return;
+
+  let repairing = false;
+  listRepairObserver = new MutationObserver(() => {
+    if (repairing || cachedHits.length === 0) return;
+    if (list.childElementCount > 0) return;
+    repairing = true;
+    void renderPanel(cachedHits).finally(() => {
+      repairing = false;
+    });
+  });
+  listRepairObserver.observe(list, { childList: true });
 }
 
 function buildPanel(): HTMLElement {
-  injectStyles();
   const panel = el('div');
   panel.id = PANEL_ID;
+  const shadow = panel.attachShadow({ mode: 'open' });
+  const style = document.createElement('style');
+  style.textContent = panelStyleText();
+  shadow.appendChild(style);
 
   const prior = el('section', 'lpn-prior');
   const heading = el('div', 'lpn-prior-heading', '');
@@ -211,9 +244,10 @@ function buildPanel(): HTMLElement {
 
   toolbar.append(importBtn, exportBtn);
   details.append(summary, toolbar, status);
-  panel.append(prior, details);
+  shadow.append(prior, details);
 
   void refreshStudyMeta(summary, studyIdFromLocation());
+  attachListRepairObserver(panel);
   panelBuilt = true;
 
   return panel;
@@ -263,6 +297,8 @@ function ensurePanelNow(): void {
 
   if (!panelBuilt || !panel) {
     if (panel) panel.remove();
+    listRepairObserver?.disconnect();
+    listRepairObserver = null;
     panel = buildPanel();
   } else if (panel && !panel.isConnected) {
     /* keep single built panel; re-mount below */
@@ -270,6 +306,7 @@ function ensurePanelNow(): void {
 
   if (!panel) return;
   mountPanel(panel);
+  refreshForCurrentFen(true);
 }
 
 function scheduleEnsurePanel(): void {
@@ -319,6 +356,7 @@ function waitForUnderboard(): void {
     }
     watchUnderboard();
     scheduleEnsurePanel();
+    ensurePanelNow();
   };
   poll();
 }

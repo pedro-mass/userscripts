@@ -2905,10 +2905,15 @@
   const STATUS_CLEAR_MS = 4e3;
   const ENSURE_BACKUP_MS = 3e3;
   let currentKey = "";
+  let cachedHits = [];
   let statusTimer;
   let panelBuilt = false;
   let ensureQueued = false;
   let underboardObserver = null;
+  let listRepairObserver = null;
+  function panelRoot(panel) {
+    return panel.shadowRoot ?? panel;
+  }
   function el(tag, className, text) {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -2945,8 +2950,10 @@
     var _a, _b, _c;
     const panel = document.getElementById(PANEL_ID);
     if (!panel) return;
-    const list = panel.querySelector(".lpn-list");
-    const heading = panel.querySelector(".lpn-prior-heading");
+    cachedHits = hits;
+    const root = panelRoot(panel);
+    const list = root.querySelector(".lpn-list");
+    const heading = root.querySelector(".lpn-prior-heading");
     if (!list || !heading) return;
     if (hits.length === 0) {
       heading.textContent = "No other indexed notes at this board";
@@ -2984,35 +2991,58 @@
       list.appendChild(item);
     }
   }
-  async function refreshForFen(fen) {
+  async function refreshForFen(fen, force = false) {
     const key = positionKeyFromFen(fen);
-    if (key === currentKey) return;
-    currentKey = key;
+    if (!force && key === currentKey) return;
     const hits = await getByPositionKey(key);
+    if (!document.getElementById(PANEL_ID)) return;
+    currentKey = key;
     await renderPanel(hits);
   }
-  function injectStyles() {
-    if (document.getElementById("lpn-styles")) return;
-    const style = document.createElement("style");
-    style.id = "lpn-styles";
-    style.textContent = `
-    #${PANEL_ID} { margin: 0.65rem 0 0; padding: 0; border: 0; }
-    #${PANEL_ID} .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0.5rem 0 0.35rem; }
-    #${PANEL_ID} .lpn-prior-heading--quiet { font-weight: normal; opacity: 0.75; }
-    #${PANEL_ID} .lpn-hit { margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--border, #333); }
-    #${PANEL_ID} .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; }
-    #${PANEL_ID} .lpn-hit-text { white-space: pre-wrap; font-size: 0.9rem; }
-    #${PANEL_ID} .lpn-meta { margin-top: 0.75rem; font-size: 0.8rem; opacity: 0.9; }
-    #${PANEL_ID} .lpn-meta summary { cursor: pointer; user-select: none; }
-    #${PANEL_ID} .lpn-toolbar { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.5rem 0 0.25rem; }
-    #${PANEL_ID} .lpn-status { min-height: 1.1em; margin-top: 0.25rem; opacity: 0.85; }
+  function refreshForCurrentFen(force = false) {
+    var _a, _b, _c;
+    const fen = (_c = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.node) == null ? void 0 : _c.fen;
+    if (fen) void refreshForFen(fen, force);
+  }
+  function panelStyleText() {
+    return `
+    :host { display: block; margin: 0.65rem 0 0; padding: 0; border: 0; color: inherit; }
+    .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0.5rem 0 0.35rem; }
+    .lpn-prior-heading--quiet { font-weight: normal; opacity: 0.75; }
+    .lpn-hit { margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--border, #333); }
+    .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; }
+    .lpn-hit-text { white-space: pre-wrap; font-size: 0.9rem; }
+    .lpn-meta { margin-top: 0.75rem; font-size: 0.8rem; opacity: 0.9; }
+    .lpn-meta summary { cursor: pointer; user-select: none; }
+    .lpn-toolbar { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.5rem 0 0.25rem; }
+    .lpn-status { min-height: 1.1em; margin-top: 0.25rem; opacity: 0.85; }
+    .button { cursor: pointer; font: inherit; padding: 0.35em 0.65em; border-radius: 3px; border: 1px solid var(--border, #555); background: var(--bg-box, #2a2a2a); color: inherit; }
+    .button-empty { background: transparent; }
+    .button-no-upper { text-transform: none; }
   `;
-    document.head.appendChild(style);
+  }
+  function attachListRepairObserver(panel) {
+    const root = panelRoot(panel);
+    const list = root.querySelector(".lpn-list");
+    if (!list || listRepairObserver) return;
+    let repairing = false;
+    listRepairObserver = new MutationObserver(() => {
+      if (repairing || cachedHits.length === 0) return;
+      if (list.childElementCount > 0) return;
+      repairing = true;
+      void renderPanel(cachedHits).finally(() => {
+        repairing = false;
+      });
+    });
+    listRepairObserver.observe(list, { childList: true });
   }
   function buildPanel() {
-    injectStyles();
     const panel = el("div");
     panel.id = PANEL_ID;
+    const shadow = panel.attachShadow({ mode: "open" });
+    const style = document.createElement("style");
+    style.textContent = panelStyleText();
+    shadow.appendChild(style);
     const prior = el("section", "lpn-prior");
     const heading = el("div", "lpn-prior-heading", "");
     const list = el("div", "lpn-list");
@@ -3075,8 +3105,9 @@
     });
     toolbar.append(importBtn, exportBtn);
     details.append(summary, toolbar, status);
-    panel.append(prior, details);
+    shadow.append(prior, details);
     void refreshStudyMeta(summary, studyIdFromLocation());
+    attachListRepairObserver(panel);
     panelBuilt = true;
     return panel;
   }
@@ -3116,10 +3147,13 @@
     if ((panel == null ? void 0 : panel.isConnected) && isPanelPlaced(panel)) return;
     if (!panelBuilt || !panel) {
       if (panel) panel.remove();
+      listRepairObserver == null ? void 0 : listRepairObserver.disconnect();
+      listRepairObserver = null;
       panel = buildPanel();
     } else if (panel && !panel.isConnected) ;
     if (!panel) return;
     mountPanel(panel);
+    refreshForCurrentFen(true);
   }
   function scheduleEnsurePanel() {
     if (ensureQueued) return;
@@ -3161,6 +3195,7 @@
       }
       watchUnderboard();
       scheduleEnsurePanel();
+      ensurePanelNow();
     };
     poll();
   }
@@ -3184,7 +3219,11 @@
       });
     });
   }
-  installLiveCapture();
-  startUi();
+  if (window.__lpnLoaded) ;
+  else {
+    window.__lpnLoaded = true;
+    installLiveCapture();
+    startUi();
+  }
 
 })();
