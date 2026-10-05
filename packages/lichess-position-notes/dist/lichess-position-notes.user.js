@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      0.1.4
+// @version      0.1.5
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
@@ -2911,6 +2911,8 @@
   let ensureQueued = false;
   let underboardObserver = null;
   let listRepairObserver = null;
+  let refreshToken = 0;
+  let renderingPanel = false;
   function panelRoot(panel) {
     return panel.shadowRoot ?? panel;
   }
@@ -2946,55 +2948,77 @@
       summary.textContent = `Index · ${total} note${total === 1 ? "" : "s"} (study not imported)`;
     }
   }
+  function detachListRepairObserver() {
+    listRepairObserver == null ? void 0 : listRepairObserver.disconnect();
+    listRepairObserver = null;
+  }
   async function renderPanel(hits) {
     var _a, _b, _c;
     const panel = document.getElementById(PANEL_ID);
     if (!panel) return;
-    cachedHits = hits;
-    const root = panelRoot(panel);
-    const list = root.querySelector(".lpn-list");
-    const heading = root.querySelector(".lpn-prior-heading");
-    if (!list || !heading) return;
-    if (hits.length === 0) {
-      heading.textContent = "No other indexed notes at this board";
-      heading.classList.add("lpn-prior-heading--quiet");
-      list.replaceChildren();
-      list.hidden = true;
+    if (renderingPanel) {
+      cachedHits = hits;
       return;
     }
-    heading.textContent = `${hits.length} other note${hits.length === 1 ? "" : "s"} at this position`;
-    heading.classList.remove("lpn-prior-heading--quiet");
-    list.hidden = false;
-    const analysis = (_a = window.site) == null ? void 0 : _a.analysis;
-    const hereStudy = (_b = analysis == null ? void 0 : analysis.study) == null ? void 0 : _b.data.study.id;
-    const hereChapter = (_c = analysis == null ? void 0 : analysis.study) == null ? void 0 : _c.vm.chapterId;
-    const herePath = analysis == null ? void 0 : analysis.path;
-    list.replaceChildren();
-    for (const hit of hits) {
-      const sameNode = hit.studyId === hereStudy && hit.chapterId === hereChapter && hit.path && hit.path === herePath;
-      const item = el("div", "lpn-hit");
-      const meta = el("div", "lpn-hit-meta", formatSource(hit));
-      const body = el("div", "lpn-hit-text", hit.text);
-      const actions = el("div", "lpn-hit-actions");
-      const go = el(
-        "button",
-        "button button-empty button-no-upper",
-        "Go to note"
-      );
-      go.type = "button";
-      go.addEventListener("click", () => void jumpToHit(hit));
-      actions.appendChild(go);
-      if (sameNode) {
-        meta.textContent += " (this move)";
+    renderingPanel = true;
+    detachListRepairObserver();
+    cachedHits = hits;
+    try {
+      const root = panelRoot(panel);
+      const prior = root.querySelector(".lpn-prior");
+      const list = root.querySelector(".lpn-list");
+      const heading = root.querySelector(".lpn-prior-heading");
+      if (!list || !heading || !prior) return;
+      if (hits.length === 0) {
+        heading.textContent = "No other indexed notes at this board";
+        heading.classList.add("lpn-prior-heading--quiet");
+        prior.open = false;
+        list.replaceChildren();
+        return;
       }
-      item.append(meta, body, actions);
-      list.appendChild(item);
+      heading.textContent = `${hits.length} other note${hits.length === 1 ? "" : "s"} at this position`;
+      heading.classList.remove("lpn-prior-heading--quiet");
+      prior.open = true;
+      const analysis = (_a = window.site) == null ? void 0 : _a.analysis;
+      const hereStudy = (_b = analysis == null ? void 0 : analysis.study) == null ? void 0 : _b.data.study.id;
+      const hereChapter = (_c = analysis == null ? void 0 : analysis.study) == null ? void 0 : _c.vm.chapterId;
+      const herePath = analysis == null ? void 0 : analysis.path;
+      const frag = document.createDocumentFragment();
+      for (const hit of hits) {
+        const sameNode = hit.studyId === hereStudy && hit.chapterId === hereChapter && hit.path && hit.path === herePath;
+        const item = el("div", "lpn-hit");
+        const meta = el("div", "lpn-hit-meta", formatSource(hit));
+        const body = el("div", "lpn-hit-text", hit.text);
+        const actions = el("div", "lpn-hit-actions");
+        const go = el(
+          "button",
+          "button button-empty button-no-upper",
+          "Go to note"
+        );
+        go.type = "button";
+        go.addEventListener("click", () => void jumpToHit(hit));
+        actions.appendChild(go);
+        if (sameNode) {
+          meta.textContent += " (this move)";
+        }
+        item.append(meta, body, actions);
+        frag.appendChild(item);
+      }
+      list.replaceChildren(frag);
+    } finally {
+      renderingPanel = false;
+      attachListRepairObserver(panel);
+      if (cachedHits !== hits && cachedHits.length > 0) {
+        void renderPanel(cachedHits);
+      }
     }
   }
   async function refreshForFen(fen, force = false) {
     const key = positionKeyFromFen(fen);
     if (!force && key === currentKey) return;
+    const token = ++refreshToken;
     const hits = await getByPositionKey(key);
+    if (token !== refreshToken) return;
     if (!document.getElementById(PANEL_ID)) return;
     currentKey = key;
     await renderPanel(hits);
@@ -3007,7 +3031,8 @@
   function panelStyleText() {
     return `
     :host { display: block; margin: 0.65rem 0 0; padding: 0; border: 0; color: inherit; }
-    .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0.5rem 0 0.35rem; }
+    .lpn-prior { margin: 0.5rem 0 0; }
+    .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.35rem; cursor: pointer; }
     .lpn-prior-heading--quiet { font-weight: normal; opacity: 0.75; }
     .lpn-hit { margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--border, #333); }
     .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; }
@@ -3022,9 +3047,10 @@
   `;
   }
   function attachListRepairObserver(panel) {
+    if (listRepairObserver) return;
     const root = panelRoot(panel);
     const list = root.querySelector(".lpn-list");
-    if (!list || listRepairObserver) return;
+    if (!list) return;
     let repairing = false;
     listRepairObserver = new MutationObserver(() => {
       if (repairing || cachedHits.length === 0) return;
@@ -3043,8 +3069,9 @@
     const style = document.createElement("style");
     style.textContent = panelStyleText();
     shadow.appendChild(style);
-    const prior = el("section", "lpn-prior");
-    const heading = el("div", "lpn-prior-heading", "");
+    const prior = el("details", "lpn-prior");
+    prior.open = true;
+    const heading = el("summary", "lpn-prior-heading", "");
     const list = el("div", "lpn-list");
     prior.append(heading, list);
     const details = el("details", "lpn-meta");
@@ -3147,8 +3174,7 @@
     if ((panel == null ? void 0 : panel.isConnected) && isPanelPlaced(panel)) return;
     if (!panelBuilt || !panel) {
       if (panel) panel.remove();
-      listRepairObserver == null ? void 0 : listRepairObserver.disconnect();
-      listRepairObserver = null;
+      detachListRepairObserver();
       panel = buildPanel();
     } else if (panel && !panel.isConnected) ;
     if (!panel) return;

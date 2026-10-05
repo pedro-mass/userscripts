@@ -20,6 +20,8 @@ let panelBuilt = false;
 let ensureQueued = false;
 let underboardObserver: MutationObserver | null = null;
 let listRepairObserver: MutationObserver | null = null;
+let refreshToken = 0;
+let renderingPanel = false;
 
 function panelRoot(panel: HTMLElement): ShadowRoot | HTMLElement {
   return panel.shadowRoot ?? panel;
@@ -67,65 +69,89 @@ async function refreshStudyMeta(
   }
 }
 
+function detachListRepairObserver(): void {
+  listRepairObserver?.disconnect();
+  listRepairObserver = null;
+}
+
 async function renderPanel(hits: PositionNoteHit[]): Promise<void> {
   const panel = document.getElementById(PANEL_ID);
   if (!panel) return;
-
-  cachedHits = hits;
-  const root = panelRoot(panel);
-  const list = root.querySelector<HTMLElement>('.lpn-list');
-  const heading = root.querySelector('.lpn-prior-heading');
-  if (!list || !heading) return;
-
-  if (hits.length === 0) {
-    heading.textContent = 'No other indexed notes at this board';
-    heading.classList.add('lpn-prior-heading--quiet');
-    list.replaceChildren();
-    list.hidden = true;
+  if (renderingPanel) {
+    cachedHits = hits;
     return;
   }
 
-  heading.textContent = `${hits.length} other note${hits.length === 1 ? '' : 's'} at this position`;
-  heading.classList.remove('lpn-prior-heading--quiet');
-  list.hidden = false;
+  renderingPanel = true;
+  detachListRepairObserver();
+  cachedHits = hits;
 
-  const analysis = window.site?.analysis;
-  const hereStudy = analysis?.study?.data.study.id;
-  const hereChapter = analysis?.study?.vm.chapterId;
-  const herePath = analysis?.path;
+  try {
+    const root = panelRoot(panel);
+    const prior = root.querySelector<HTMLDetailsElement>('.lpn-prior');
+    const list = root.querySelector<HTMLElement>('.lpn-list');
+    const heading = root.querySelector('.lpn-prior-heading');
+    if (!list || !heading || !prior) return;
 
-  list.replaceChildren();
-  for (const hit of hits) {
-    const sameNode =
-      hit.studyId === hereStudy &&
-      hit.chapterId === hereChapter &&
-      hit.path &&
-      hit.path === herePath;
-
-    const item = el('div', 'lpn-hit');
-    const meta = el('div', 'lpn-hit-meta', formatSource(hit));
-    const body = el('div', 'lpn-hit-text', hit.text);
-    const actions = el('div', 'lpn-hit-actions');
-    const go = el(
-      'button',
-      'button button-empty button-no-upper',
-      'Go to note',
-    ) as HTMLButtonElement;
-    go.type = 'button';
-    go.addEventListener('click', () => void jumpToHit(hit));
-    actions.appendChild(go);
-    if (sameNode) {
-      meta.textContent += ' (this move)';
+    if (hits.length === 0) {
+      heading.textContent = 'No other indexed notes at this board';
+      heading.classList.add('lpn-prior-heading--quiet');
+      prior.open = false;
+      list.replaceChildren();
+      return;
     }
-    item.append(meta, body, actions);
-    list.appendChild(item);
+
+    heading.textContent = `${hits.length} other note${hits.length === 1 ? '' : 's'} at this position`;
+    heading.classList.remove('lpn-prior-heading--quiet');
+    prior.open = true;
+
+    const analysis = window.site?.analysis;
+    const hereStudy = analysis?.study?.data.study.id;
+    const hereChapter = analysis?.study?.vm.chapterId;
+    const herePath = analysis?.path;
+
+    const frag = document.createDocumentFragment();
+    for (const hit of hits) {
+      const sameNode =
+        hit.studyId === hereStudy &&
+        hit.chapterId === hereChapter &&
+        hit.path &&
+        hit.path === herePath;
+
+      const item = el('div', 'lpn-hit');
+      const meta = el('div', 'lpn-hit-meta', formatSource(hit));
+      const body = el('div', 'lpn-hit-text', hit.text);
+      const actions = el('div', 'lpn-hit-actions');
+      const go = el(
+        'button',
+        'button button-empty button-no-upper',
+        'Go to note',
+      ) as HTMLButtonElement;
+      go.type = 'button';
+      go.addEventListener('click', () => void jumpToHit(hit));
+      actions.appendChild(go);
+      if (sameNode) {
+        meta.textContent += ' (this move)';
+      }
+      item.append(meta, body, actions);
+      frag.appendChild(item);
+    }
+    list.replaceChildren(frag);
+  } finally {
+    renderingPanel = false;
+    attachListRepairObserver(panel);
+    if (cachedHits !== hits && cachedHits.length > 0) {
+      void renderPanel(cachedHits);
+    }
   }
 }
 
 async function refreshForFen(fen: string, force = false): Promise<void> {
   const key = positionKeyFromFen(fen);
   if (!force && key === currentKey) return;
+  const token = ++refreshToken;
   const hits = await getByPositionKey(key);
+  if (token !== refreshToken) return;
   if (!document.getElementById(PANEL_ID)) return;
   currentKey = key;
   await renderPanel(hits);
@@ -139,7 +165,8 @@ function refreshForCurrentFen(force = false): void {
 function panelStyleText(): string {
   return `
     :host { display: block; margin: 0.65rem 0 0; padding: 0; border: 0; color: inherit; }
-    .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0.5rem 0 0.35rem; }
+    .lpn-prior { margin: 0.5rem 0 0; }
+    .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.35rem; cursor: pointer; }
     .lpn-prior-heading--quiet { font-weight: normal; opacity: 0.75; }
     .lpn-hit { margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--border, #333); }
     .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; }
@@ -155,9 +182,10 @@ function panelStyleText(): string {
 }
 
 function attachListRepairObserver(panel: HTMLElement): void {
+  if (listRepairObserver) return;
   const root = panelRoot(panel);
   const list = root.querySelector('.lpn-list');
-  if (!list || listRepairObserver) return;
+  if (!list) return;
 
   let repairing = false;
   listRepairObserver = new MutationObserver(() => {
@@ -179,8 +207,9 @@ function buildPanel(): HTMLElement {
   style.textContent = panelStyleText();
   shadow.appendChild(style);
 
-  const prior = el('section', 'lpn-prior');
-  const heading = el('div', 'lpn-prior-heading', '');
+  const prior = el('details', 'lpn-prior') as HTMLDetailsElement;
+  prior.open = true;
+  const heading = el('summary', 'lpn-prior-heading', '');
   const list = el('div', 'lpn-list');
   prior.append(heading, list);
 
@@ -297,8 +326,7 @@ function ensurePanelNow(): void {
 
   if (!panelBuilt || !panel) {
     if (panel) panel.remove();
-    listRepairObserver?.disconnect();
-    listRepairObserver = null;
+    detachListRepairObserver();
     panel = buildPanel();
   } else if (panel && !panel.isConnected) {
     /* keep single built panel; re-mount below */
