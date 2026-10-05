@@ -4,7 +4,7 @@ Personal browser userscripts (Tampermonkey / Violentmonkey), built as a pnpm mon
 
 **Agents:** prove behavior on the live site in the Cursor in-app browser before treating `dist/*.user.js` or Greasy Fork as done. Mantra and steps: **[docs/verify-in-browser.md](docs/verify-in-browser.md)** · [.agent/AGENTS.md](.agent/AGENTS.md).
 
-**Actively maintained:** [LiveChart.me minimum rating filter](packages/live-chart-filter/), [Chess.com → Lichess export](packages/chesscom-lichess-export/), and [Cursor spending pace](packages/cursor-spend-pace/). Other packages are archived in-repo and no longer supported.
+**Actively maintained:** [LiveChart.me minimum rating filter](packages/live-chart-filter/), [Chess.com → Lichess export](packages/chesscom-lichess-export/), [Cursor spending pace](packages/cursor-spend-pace/), and [Lichess position notes](packages/lichess-position-notes/). Other packages are archived in-repo and no longer supported.
 
 ## Layout
 
@@ -13,6 +13,7 @@ packages/
   live-chart-filter/          # maintained
   chesscom-lichess-export/    # maintained
   cursor-spend-pace/          # maintained
+  lichess-position-notes/     # maintained
   shared/                     # shared DOM helpers
   lichess-stats/       # archived (unsupported)
   udemy-section-time/  # archived (unsupported)
@@ -27,6 +28,7 @@ pnpm install
 pnpm build              # live-chart-filter
 pnpm build:chesscom     # chess.com → lichess
 pnpm build:cursor-pace # cursor.com spending pace
+pnpm build:lichess-position-notes
 ```
 
 | Package | Install |
@@ -34,8 +36,9 @@ pnpm build:cursor-pace # cursor.com spending pace
 | LiveChart filter | [Greasy Fork 547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) or `packages/live-chart-filter/dist/live-chart-filter.user.js` |
 | Chess.com → Lichess | [Greasy Fork 594491](https://greasyfork.org/en/scripts/594491-chess-com-lichess-export) or `packages/chesscom-lichess-export/dist/chesscom-lichess-export.user.js` |
 | Cursor spending pace | [Greasy Fork 595283](https://greasyfork.org/en/scripts/595283-cursor-spending-pace) or `packages/cursor-spend-pace/dist/cursor-spend-pace.user.js` |
+| Lichess position notes | `packages/lichess-position-notes/dist/lichess-position-notes.user.js` (Greasy Fork TBD) |
 
-Dev: `pnpm dev` (LiveChart) · `pnpm dev:chesscom`
+Dev: `pnpm dev` (LiveChart) · `pnpm dev:chesscom` · `pnpm dev:lichess-position-notes`
 
 **Publishing:** [docs/publishing.md](docs/publishing.md) · `pnpm greasyfork:sync <package>` after pushing `dist/`
 
@@ -46,6 +49,7 @@ Dev: `pnpm dev` (LiveChart) · `pnpm dev:chesscom`
 | `live-chart-filter` | livechart.me | [547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) | `dist/live-chart-filter.user.js` |
 | `chesscom-lichess-export` | chess.com | [594491](https://greasyfork.org/en/scripts/594491-chess-com-lichess-export) | `dist/chesscom-lichess-export.user.js` |
 | `cursor-spend-pace` | cursor.com | [595283](https://greasyfork.org/en/scripts/595283-cursor-spending-pace) | `dist/cursor-spend-pace.user.js` |
+| `lichess-position-notes` | lichess.org study | (publish pending) | `dist/lichess-position-notes.user.js` |
 
 ## Archived (unsupported)
 
