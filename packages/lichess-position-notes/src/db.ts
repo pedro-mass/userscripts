@@ -45,7 +45,6 @@ export async function replaceLiveNodeHit(hit: PositionNoteHit): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     const store = tx.objectStore(STORE);
-    const livePrefix = `live|${hit.studyId}|${hit.chapterId}|${hit.path}`;
     const req = store.index('positionKey').getAll(hit.positionKey);
     req.onsuccess = () => {
       const rows = req.result as PositionNoteHit[];
@@ -54,11 +53,7 @@ export async function replaceLiveNodeHit(hit: PositionNoteHit): Promise<void> {
           continue;
         }
         if (row.id === hit.id) continue;
-        if (row.id.startsWith(livePrefix)) {
-          store.delete(row.id);
-          continue;
-        }
-        if (row.source === 'import' && row.path === '' && row.ply === hit.ply) {
+        if (row.positionKey === hit.positionKey) {
           store.delete(row.id);
         }
       }
@@ -76,6 +71,32 @@ export async function upsertMany(hits: PositionNoteHit[]): Promise<void> {
     const tx = db.transaction(STORE, 'readwrite');
     const store = tx.objectStore(STORE);
     for (const hit of hits) store.put(hit);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/** After import: one indexed row per chapter per board (newest text wins). */
+export async function collapseStudyPositionRows(studyId: string): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    const req = store.index('studyId').getAll(studyId);
+    req.onsuccess = () => {
+      const rows = req.result as PositionNoteHit[];
+      const keep = new Map<string, PositionNoteHit>();
+      for (const row of rows) {
+        const key = `${row.positionKey}\0${row.chapterId}`;
+        const prev = keep.get(key);
+        if (!prev || row.updatedAt > prev.updatedAt) keep.set(key, row);
+      }
+      const keepIds = new Set(keep.values().map((h) => h.id));
+      for (const row of rows) {
+        if (!keepIds.has(row.id)) store.delete(row.id);
+      }
+    };
+    req.onerror = () => reject(req.error);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });

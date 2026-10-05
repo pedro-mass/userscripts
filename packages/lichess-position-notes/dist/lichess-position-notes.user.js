@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      0.1.9
+// @version      0.1.10
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
@@ -50,7 +50,6 @@
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, "readwrite");
       const store = tx.objectStore(STORE);
-      const livePrefix = `live|${hit.studyId}|${hit.chapterId}|${hit.path}`;
       const req = store.index("positionKey").getAll(hit.positionKey);
       req.onsuccess = () => {
         const rows = req.result;
@@ -59,11 +58,7 @@
             continue;
           }
           if (row.id === hit.id) continue;
-          if (row.id.startsWith(livePrefix)) {
-            store.delete(row.id);
-            continue;
-          }
-          if (row.source === "import" && row.path === "" && row.ply === hit.ply) {
+          if (row.positionKey === hit.positionKey) {
             store.delete(row.id);
           }
         }
@@ -80,6 +75,30 @@
       const tx = db.transaction(STORE, "readwrite");
       const store = tx.objectStore(STORE);
       for (const hit of hits) store.put(hit);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function collapseStudyPositionRows(studyId) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      const store = tx.objectStore(STORE);
+      const req = store.index("studyId").getAll(studyId);
+      req.onsuccess = () => {
+        const rows = req.result;
+        const keep = /* @__PURE__ */ new Map();
+        for (const row of rows) {
+          const key = `${row.positionKey}\0${row.chapterId}`;
+          const prev = keep.get(key);
+          if (!prev || row.updatedAt > prev.updatedAt) keep.set(key, row);
+        }
+        const keepIds = new Set(keep.values().map((h) => h.id));
+        for (const row of rows) {
+          if (!keepIds.has(row.id)) store.delete(row.id);
+        }
+      };
+      req.onerror = () => reject(req.error);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -147,7 +166,7 @@
     return res.text();
   }
   function liveHitFromAnalysis(text) {
-    var _a;
+    var _a, _b;
     const analysis = (_a = window.site) == null ? void 0 : _a.analysis;
     const study = analysis == null ? void 0 : analysis.study;
     if (!analysis || !study) return null;
@@ -158,6 +177,7 @@
     const studyId = study.data.id;
     const studyName = study.data.name;
     const chapterId = study.vm.chapterId;
+    const chapterName = ((_b = study.data.chapter) == null ? void 0 : _b.name) ?? "";
     const path = analysis.path;
     const ply = analysis.node.ply;
     const san = analysis.node.san;
@@ -172,7 +192,7 @@
       studyId,
       studyName,
       chapterId,
-      chapterName: "",
+      chapterName,
       path,
       ply,
       san,
@@ -2924,7 +2944,7 @@
     return all;
   }
   const PANEL_ID = "lpn-position-notes-panel";
-  const LPN_VERSION = "0.1.9";
+  const LPN_VERSION = "0.1.10";
   const STATUS_CLEAR_MS = 4e3;
   const ENSURE_BACKUP_MS = 3e3;
   let currentKey = "";
@@ -2974,8 +2994,23 @@
     if (!study) return false;
     return hit.studyId === ((_c = study.data) == null ? void 0 : _c.id) && hit.chapterId === study.vm.chapterId;
   }
+  function dedupeNewestPerChapter(hits) {
+    const byChapter = /* @__PURE__ */ new Map();
+    for (const hit of hits) {
+      const key = hit.chapterId || hit.chapterUrl;
+      const prev = byChapter.get(key);
+      if (!prev || hit.updatedAt > prev.updatedAt) byChapter.set(key, hit);
+    }
+    return [...byChapter.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+  }
   function hitsForDisplay(hits) {
-    return hits.filter((hit) => !isCurrentChapterNote(hit));
+    const others = hits.filter((hit) => !isCurrentChapterNote(hit));
+    return dedupeNewestPerChapter(others);
+  }
+  function headingForVisible(count) {
+    if (count === 0) return "No notes from other chapters at this board";
+    const n2 = count === 1 ? "1 note" : `${count} notes`;
+    return `${n2} from other chapters at this position`;
   }
   function listNeedsPaint(hits) {
     const visible = hitsForDisplay(hits);
@@ -2994,7 +3029,7 @@
     if (!list || !heading) return;
     const visible = hitsForDisplay(hits);
     if (visible.length === 0) {
-      heading.textContent = "No other indexed notes at this board";
+      heading.textContent = headingForVisible(0);
       heading.classList.add("lpn-prior-heading--quiet");
       list.replaceChildren();
       return;
@@ -3012,7 +3047,7 @@
       item.append(go, meta, body);
       list.appendChild(item);
     }
-    heading.textContent = `${visible.length} other note${visible.length === 1 ? "" : "s"} at this position`;
+    heading.textContent = headingForVisible(visible.length);
     heading.classList.remove("lpn-prior-heading--quiet");
   }
   async function refreshForFen(fen, force = false) {
@@ -3095,6 +3130,8 @@
         const pgn = await fetchStudyPgn(studyId);
         const hits = hitsFromStudyPgn(pgn, studyId);
         await upsertMany(hits);
+        await collapseStudyPositionRows(studyId);
+        window.dispatchEvent(new CustomEvent("lpn-db-changed"));
         await refreshStudyMeta(summary, studyId);
         setTransientStatus(
           status,

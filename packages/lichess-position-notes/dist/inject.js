@@ -28,11 +28,26 @@
       };
     });
   }
-  async function upsertHit(hit) {
+  async function replaceLiveNodeHit(hit) {
     const db = await openDb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).put(hit);
+      const store = tx.objectStore(STORE);
+      const req = store.index("positionKey").getAll(hit.positionKey);
+      req.onsuccess = () => {
+        const rows = req.result;
+        for (const row of rows) {
+          if (row.studyId !== hit.studyId || row.chapterId !== hit.chapterId) {
+            continue;
+          }
+          if (row.id === hit.id) continue;
+          if (row.positionKey === hit.positionKey) {
+            store.delete(row.id);
+          }
+        }
+        store.put(hit);
+      };
+      req.onerror = () => reject(req.error);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -43,6 +58,30 @@
       const tx = db.transaction(STORE, "readwrite");
       const store = tx.objectStore(STORE);
       for (const hit of hits) store.put(hit);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function collapseStudyPositionRows(studyId) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      const store = tx.objectStore(STORE);
+      const req = store.index("studyId").getAll(studyId);
+      req.onsuccess = () => {
+        const rows = req.result;
+        const keep = /* @__PURE__ */ new Map();
+        for (const row of rows) {
+          const key = `${row.positionKey}\0${row.chapterId}`;
+          const prev = keep.get(key);
+          if (!prev || row.updatedAt > prev.updatedAt) keep.set(key, row);
+        }
+        const keepIds = new Set(keep.values().map((h) => h.id));
+        for (const row of rows) {
+          if (!keepIds.has(row.id)) store.delete(row.id);
+        }
+      };
+      req.onerror = () => reject(req.error);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -110,7 +149,7 @@
     return res.text();
   }
   function liveHitFromAnalysis(text) {
-    var _a;
+    var _a, _b;
     const analysis = (_a = window.site) == null ? void 0 : _a.analysis;
     const study = analysis == null ? void 0 : analysis.study;
     if (!analysis || !study) return null;
@@ -118,15 +157,16 @@
     if (!trimmed) return null;
     const fenFull = analysis.node.fen;
     const positionKey = positionKeyFromFen(fenFull);
-    const studyId = study.data.study.id;
-    const studyName = study.data.study.name;
+    const studyId = study.data.id;
+    const studyName = study.data.name;
     const chapterId = study.vm.chapterId;
+    const chapterName = ((_b = study.data.chapter) == null ? void 0 : _b.name) ?? "";
     const path = analysis.path;
     const ply = analysis.node.ply;
     const san = analysis.node.san;
     const chapterUrl = `https://lichess.org/study/${studyId}/${chapterId}`;
     const onMainline = true;
-    const id = `live|${studyId}|${chapterId}|${path}|${trimmed}`;
+    const id = `live|${studyId}|${chapterId}|${path}`;
     return {
       id,
       positionKey,
@@ -135,7 +175,7 @@
       studyId,
       studyName,
       chapterId,
-      chapterName: "",
+      chapterName,
       path,
       ply,
       san,
@@ -149,11 +189,11 @@
     };
   }
   async function jumpToHit(hit) {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f;
     await waitForAnalysis();
     const analysis = (_a = window.site) == null ? void 0 : _a.analysis;
     if (!analysis) return;
-    const sameChapter = ((_b = analysis.study) == null ? void 0 : _b.vm.chapterId) === hit.chapterId && ((_c = analysis.study) == null ? void 0 : _c.data.study.id) === hit.studyId;
+    const sameChapter = ((_b = analysis.study) == null ? void 0 : _b.vm.chapterId) === hit.chapterId && ((_d = (_c = analysis.study) == null ? void 0 : _c.data) == null ? void 0 : _d.id) === hit.studyId;
     if (sameChapter && hit.path) {
       analysis.userJump(hit.path);
       return;
@@ -161,7 +201,7 @@
     if (sameChapter && hit.uciTrail.length > 0) {
       analysis.userJump("");
       for (const uci of hit.uciTrail) {
-        (_e = (_d = window.lichess) == null ? void 0 : _d.analysis) == null ? void 0 : _e.playUci(uci);
+        (_f = (_e = window.lichess) == null ? void 0 : _e.analysis) == null ? void 0 : _f.playUci(uci);
       }
       return;
     }
@@ -182,7 +222,9 @@
             if (hit) {
               hit.chapterId = msg.d.ch ?? hit.chapterId;
               hit.path = msg.d.path ?? hit.path;
-              void upsertHit(hit);
+              void replaceLiveNodeHit(hit).then(() => {
+                window.dispatchEvent(new CustomEvent("lpn-db-changed"));
+              });
             }
           }
         } catch {
@@ -2885,7 +2927,7 @@
     return all;
   }
   const PANEL_ID = "lpn-position-notes-panel";
-  const LPN_VERSION = "0.1.6";
+  const LPN_VERSION = "0.1.10";
   const STATUS_CLEAR_MS = 4e3;
   const ENSURE_BACKUP_MS = 3e3;
   let currentKey = "";
@@ -2929,54 +2971,67 @@
       summary.textContent = `Index · ${total} note${total === 1 ? "" : "s"} (study not imported)`;
     }
   }
+  function isCurrentChapterNote(hit) {
+    var _a, _b, _c;
+    const study = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.study;
+    if (!study) return false;
+    return hit.studyId === ((_c = study.data) == null ? void 0 : _c.id) && hit.chapterId === study.vm.chapterId;
+  }
+  function dedupeNewestPerChapter(hits) {
+    const byChapter = /* @__PURE__ */ new Map();
+    for (const hit of hits) {
+      const key = hit.chapterId || hit.chapterUrl;
+      const prev = byChapter.get(key);
+      if (!prev || hit.updatedAt > prev.updatedAt) byChapter.set(key, hit);
+    }
+    return [...byChapter.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+  function hitsForDisplay(hits) {
+    const others = hits.filter((hit) => !isCurrentChapterNote(hit));
+    return dedupeNewestPerChapter(others);
+  }
+  function headingForVisible(count) {
+    if (count === 0) return "No notes from other chapters at this board";
+    const n2 = count === 1 ? "1 note" : `${count} notes`;
+    return `${n2} from other chapters at this position`;
+  }
   function listNeedsPaint(hits) {
+    const visible = hitsForDisplay(hits);
     const panel = document.getElementById(PANEL_ID);
     if (!panel) return false;
     const list = panelRoot(panel).querySelector(".lpn-list");
     if (!list) return true;
-    return hits.length > 0 && list.childElementCount !== hits.length;
+    return list.childElementCount !== visible.length;
   }
   function paintHitList(hits) {
-    var _a, _b, _c;
     const panel = document.getElementById(PANEL_ID);
     if (!panel) return;
     const root = panelRoot(panel);
     const list = root.querySelector(".lpn-list");
     const heading = root.querySelector(".lpn-prior-heading");
     if (!list || !heading) return;
-    if (hits.length === 0) {
-      heading.textContent = "No other indexed notes at this board";
+    const visible = hitsForDisplay(hits);
+    if (visible.length === 0) {
+      heading.textContent = headingForVisible(0);
       heading.classList.add("lpn-prior-heading--quiet");
       list.replaceChildren();
       return;
     }
-    heading.textContent = `${hits.length} other note${hits.length === 1 ? "" : "s"} at this position`;
-    heading.classList.remove("lpn-prior-heading--quiet");
-    const analysis = (_a = window.site) == null ? void 0 : _a.analysis;
-    const hereStudy = (_b = analysis == null ? void 0 : analysis.study) == null ? void 0 : _b.data.study.id;
-    const hereChapter = (_c = analysis == null ? void 0 : analysis.study) == null ? void 0 : _c.vm.chapterId;
-    const herePath = analysis == null ? void 0 : analysis.path;
     list.replaceChildren();
-    for (const hit of hits) {
-      const sameNode = hit.studyId === hereStudy && hit.chapterId === hereChapter && hit.path && hit.path === herePath;
+    for (const hit of visible) {
       const item = el("div", "lpn-hit");
+      const go = el("button", "lpn-hit-go", "↗");
+      go.type = "button";
+      go.title = "Open this note";
+      go.setAttribute("aria-label", "Open this note");
+      go.addEventListener("click", () => void jumpToHit(hit));
       const meta = el("div", "lpn-hit-meta", formatSource(hit));
       const body = el("div", "lpn-hit-text", hit.text);
-      const actions = el("div", "lpn-hit-actions");
-      const go = el(
-        "button",
-        "button button-empty button-no-upper",
-        "Go to note"
-      );
-      go.type = "button";
-      go.addEventListener("click", () => void jumpToHit(hit));
-      actions.appendChild(go);
-      if (sameNode) {
-        meta.textContent += " (this move)";
-      }
-      item.append(meta, body, actions);
+      item.append(go, meta, body);
       list.appendChild(item);
     }
+    heading.textContent = headingForVisible(visible.length);
+    heading.classList.remove("lpn-prior-heading--quiet");
   }
   async function refreshForFen(fen, force = false) {
     const key = positionKeyFromFen(fen);
@@ -3004,8 +3059,10 @@
     .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.35rem; }
     .lpn-list { display: block; min-height: 0.25rem; }
     .lpn-prior-heading--quiet { font-weight: normal; opacity: 0.75; }
-    .lpn-hit { margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--border, #333); }
-    .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; }
+    .lpn-hit { position: relative; margin-bottom: 0.65rem; padding: 0 1.6rem 0.65rem 0; border-bottom: 1px solid var(--border, #333); }
+    .lpn-hit-go { position: absolute; top: 0; right: 0; padding: 0.1rem 0.25rem; border: 0; background: transparent; color: inherit; font-size: 1rem; line-height: 1; cursor: pointer; opacity: 0.75; }
+    .lpn-hit-go:hover { opacity: 1; }
+    .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; padding-right: 0.25rem; }
     .lpn-hit-text { white-space: pre-wrap; font-size: 0.9rem; }
     .lpn-meta { margin-top: 0.75rem; font-size: 0.8rem; opacity: 0.9; }
     .lpn-meta summary { cursor: pointer; user-select: none; }
@@ -3056,6 +3113,8 @@
         const pgn = await fetchStudyPgn(studyId);
         const hits = hitsFromStudyPgn(pgn, studyId);
         await upsertMany(hits);
+        await collapseStudyPositionRows(studyId);
+        window.dispatchEvent(new CustomEvent("lpn-db-changed"));
         await refreshStudyMeta(summary, studyId);
         setTransientStatus(
           status,
@@ -3187,6 +3246,10 @@
   }
   function startUi() {
     startPanelWatch();
+    window.addEventListener("lpn-db-changed", () => {
+      currentKey = "";
+      refreshForCurrentFen(true);
+    });
     void waitForAnalysis().then(() => {
       var _a, _b, _c, _d, _e;
       const fen = (_c = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.node) == null ? void 0 : _c.fen;

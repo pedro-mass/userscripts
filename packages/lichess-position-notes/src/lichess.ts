@@ -36,6 +36,8 @@ export function liveHitFromAnalysis(text: string): PositionNoteHit | null {
   const studyId = study.data.id;
   const studyName = study.data.name;
   const chapterId = study.vm.chapterId;
+  const chapterName =
+    (study.data as { chapter?: { name?: string } }).chapter?.name ?? '';
   const path = analysis.path;
   const ply = analysis.node.ply;
   const san = analysis.node.san;
@@ -52,7 +54,7 @@ export function liveHitFromAnalysis(text: string): PositionNoteHit | null {
     studyId,
     studyName,
     chapterId,
-    chapterName: '',
+    chapterName,
     path,
     ply,
     san,

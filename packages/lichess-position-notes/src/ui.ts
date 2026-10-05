@@ -1,4 +1,11 @@
-import { countAll, countForStudy, exportJson, getByPositionKey, upsertMany } from './db';
+import {
+  collapseStudyPositionRows,
+  countAll,
+  countForStudy,
+  exportJson,
+  getByPositionKey,
+  upsertMany,
+} from './db';
 import { hitsFromStudyPgn } from './ingest-pgn';
 import {
   fetchStudyPgn,
@@ -10,7 +17,7 @@ import { positionKeyFromFen } from './position-key';
 import type { PositionNoteHit } from './types';
 
 const PANEL_ID = 'lpn-position-notes-panel';
-const LPN_VERSION = '0.1.9';
+const LPN_VERSION = '0.1.10';
 const STATUS_CLEAR_MS = 4000;
 const ENSURE_BACKUP_MS = 3000;
 
@@ -76,8 +83,26 @@ function isCurrentChapterNote(hit: PositionNoteHit): boolean {
   );
 }
 
+/** One row per other chapter (newest wins); drops stale live edit duplicates. */
+function dedupeNewestPerChapter(hits: PositionNoteHit[]): PositionNoteHit[] {
+  const byChapter = new Map<string, PositionNoteHit>();
+  for (const hit of hits) {
+    const key = hit.chapterId || hit.chapterUrl;
+    const prev = byChapter.get(key);
+    if (!prev || hit.updatedAt > prev.updatedAt) byChapter.set(key, hit);
+  }
+  return [...byChapter.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
 function hitsForDisplay(hits: PositionNoteHit[]): PositionNoteHit[] {
-  return hits.filter((hit) => !isCurrentChapterNote(hit));
+  const others = hits.filter((hit) => !isCurrentChapterNote(hit));
+  return dedupeNewestPerChapter(others);
+}
+
+function headingForVisible(count: number): string {
+  if (count === 0) return 'No notes from other chapters at this board';
+  const n = count === 1 ? '1 note' : `${count} notes`;
+  return `${n} from other chapters at this position`;
 }
 
 function listNeedsPaint(hits: PositionNoteHit[]): boolean {
@@ -101,7 +126,7 @@ function paintHitList(hits: PositionNoteHit[]): void {
   const visible = hitsForDisplay(hits);
 
   if (visible.length === 0) {
-    heading.textContent = 'No other indexed notes at this board';
+    heading.textContent = headingForVisible(0);
     heading.classList.add('lpn-prior-heading--quiet');
     list.replaceChildren();
     return;
@@ -121,7 +146,7 @@ function paintHitList(hits: PositionNoteHit[]): void {
     list.appendChild(item);
   }
 
-  heading.textContent = `${visible.length} other note${visible.length === 1 ? '' : 's'} at this position`;
+  heading.textContent = headingForVisible(visible.length);
   heading.classList.remove('lpn-prior-heading--quiet');
 }
 
@@ -211,6 +236,8 @@ function buildPanel(): HTMLElement {
       const pgn = await fetchStudyPgn(studyId);
       const hits = hitsFromStudyPgn(pgn, studyId);
       await upsertMany(hits);
+      await collapseStudyPositionRows(studyId);
+      window.dispatchEvent(new CustomEvent('lpn-db-changed'));
       await refreshStudyMeta(summary, studyId);
       setTransientStatus(
         status,
