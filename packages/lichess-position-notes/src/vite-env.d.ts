@@ -13,7 +13,7 @@ interface LichessAnalyseCtrl {
 }
 
 interface LichessStudyCtrl {
-  data: { study: { id: string; name: string } };
+  data: { id: string; name: string };
   vm: { chapterId: string; mode: { write: boolean } };
   makeChange(
     type: string,

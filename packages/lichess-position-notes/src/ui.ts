@@ -10,7 +10,7 @@ import { positionKeyFromFen } from './position-key';
 import type { PositionNoteHit } from './types';
 
 const PANEL_ID = 'lpn-position-notes-panel';
-const LPN_VERSION = '0.1.6';
+const LPN_VERSION = '0.1.7';
 const STATUS_CLEAR_MS = 4000;
 const ENSURE_BACKUP_MS = 3000;
 
@@ -91,11 +91,8 @@ function paintHitList(hits: PositionNoteHit[]): void {
     return;
   }
 
-  heading.textContent = `${hits.length} other note${hits.length === 1 ? '' : 's'} at this position`;
-  heading.classList.remove('lpn-prior-heading--quiet');
-
   const analysis = window.site?.analysis;
-  const hereStudy = analysis?.study?.data.study.id;
+  const hereStudy = analysis?.study?.data?.id;
   const hereChapter = analysis?.study?.vm.chapterId;
   const herePath = analysis?.path;
 
@@ -125,6 +122,9 @@ function paintHitList(hits: PositionNoteHit[]): void {
     item.append(meta, body, actions);
     list.appendChild(item);
   }
+
+  heading.textContent = `${hits.length} other note${hits.length === 1 ? '' : 's'} at this position`;
+  heading.classList.remove('lpn-prior-heading--quiet');
 }
 
 async function refreshForFen(fen: string, force = false): Promise<void> {

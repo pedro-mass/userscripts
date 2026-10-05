@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      0.1.6
+// @version      0.1.7
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
@@ -135,8 +135,8 @@
     if (!trimmed) return null;
     const fenFull = analysis.node.fen;
     const positionKey = positionKeyFromFen(fenFull);
-    const studyId = study.data.study.id;
-    const studyName = study.data.study.name;
+    const studyId = study.data.id;
+    const studyName = study.data.name;
     const chapterId = study.vm.chapterId;
     const path = analysis.path;
     const ply = analysis.node.ply;
@@ -166,11 +166,11 @@
     };
   }
   async function jumpToHit(hit) {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f;
     await waitForAnalysis();
     const analysis = (_a = window.site) == null ? void 0 : _a.analysis;
     if (!analysis) return;
-    const sameChapter = ((_b = analysis.study) == null ? void 0 : _b.vm.chapterId) === hit.chapterId && ((_c = analysis.study) == null ? void 0 : _c.data.study.id) === hit.studyId;
+    const sameChapter = ((_b = analysis.study) == null ? void 0 : _b.vm.chapterId) === hit.chapterId && ((_d = (_c = analysis.study) == null ? void 0 : _c.data) == null ? void 0 : _d.id) === hit.studyId;
     if (sameChapter && hit.path) {
       analysis.userJump(hit.path);
       return;
@@ -178,7 +178,7 @@
     if (sameChapter && hit.uciTrail.length > 0) {
       analysis.userJump("");
       for (const uci of hit.uciTrail) {
-        (_e = (_d = window.lichess) == null ? void 0 : _d.analysis) == null ? void 0 : _e.playUci(uci);
+        (_f = (_e = window.lichess) == null ? void 0 : _e.analysis) == null ? void 0 : _f.playUci(uci);
       }
       return;
     }
@@ -2902,7 +2902,7 @@
     return all;
   }
   const PANEL_ID = "lpn-position-notes-panel";
-  const LPN_VERSION = "0.1.6";
+  const LPN_VERSION = "0.1.7";
   const STATUS_CLEAR_MS = 4e3;
   const ENSURE_BACKUP_MS = 3e3;
   let currentKey = "";
@@ -2954,7 +2954,7 @@
     return hits.length > 0 && list.childElementCount !== hits.length;
   }
   function paintHitList(hits) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     const panel = document.getElementById(PANEL_ID);
     if (!panel) return;
     const root = panelRoot(panel);
@@ -2967,11 +2967,9 @@
       list.replaceChildren();
       return;
     }
-    heading.textContent = `${hits.length} other note${hits.length === 1 ? "" : "s"} at this position`;
-    heading.classList.remove("lpn-prior-heading--quiet");
     const analysis = (_a = window.site) == null ? void 0 : _a.analysis;
-    const hereStudy = (_b = analysis == null ? void 0 : analysis.study) == null ? void 0 : _b.data.study.id;
-    const hereChapter = (_c = analysis == null ? void 0 : analysis.study) == null ? void 0 : _c.vm.chapterId;
+    const hereStudy = (_c = (_b = analysis == null ? void 0 : analysis.study) == null ? void 0 : _b.data) == null ? void 0 : _c.id;
+    const hereChapter = (_d = analysis == null ? void 0 : analysis.study) == null ? void 0 : _d.vm.chapterId;
     const herePath = analysis == null ? void 0 : analysis.path;
     list.replaceChildren();
     for (const hit of hits) {
@@ -2994,6 +2992,8 @@
       item.append(meta, body, actions);
       list.appendChild(item);
     }
+    heading.textContent = `${hits.length} other note${hits.length === 1 ? "" : "s"} at this position`;
+    heading.classList.remove("lpn-prior-heading--quiet");
   }
   async function refreshForFen(fen, force = false) {
     const key = positionKeyFromFen(fen);

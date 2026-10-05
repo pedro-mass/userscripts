@@ -33,8 +33,8 @@ export function liveHitFromAnalysis(text: string): PositionNoteHit | null {
 
   const fenFull = analysis.node.fen;
   const positionKey = positionKeyFromFen(fenFull);
-  const studyId = study.data.study.id;
-  const studyName = study.data.study.name;
+  const studyId = study.data.id;
+  const studyName = study.data.name;
   const chapterId = study.vm.chapterId;
   const path = analysis.path;
   const ply = analysis.node.ply;
@@ -73,7 +73,7 @@ export async function jumpToHit(hit: PositionNoteHit): Promise<void> {
 
   const sameChapter =
     analysis.study?.vm.chapterId === hit.chapterId &&
-    analysis.study?.data.study.id === hit.studyId;
+    analysis.study?.data?.id === hit.studyId;
 
   if (sameChapter && hit.path) {
     analysis.userJump(hit.path);
