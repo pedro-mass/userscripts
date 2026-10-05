@@ -10,18 +10,16 @@ import { positionKeyFromFen } from './position-key';
 import type { PositionNoteHit } from './types';
 
 const PANEL_ID = 'lpn-position-notes-panel';
+const LPN_VERSION = '0.1.6';
 const STATUS_CLEAR_MS = 4000;
 const ENSURE_BACKUP_MS = 3000;
 
 let currentKey = '';
-let cachedHits: PositionNoteHit[] = [];
 let statusTimer: number | undefined;
 let panelBuilt = false;
 let ensureQueued = false;
 let underboardObserver: MutationObserver | null = null;
-let listRepairObserver: MutationObserver | null = null;
 let refreshToken = 0;
-let renderingPanel = false;
 
 function panelRoot(panel: HTMLElement): ShadowRoot | HTMLElement {
   return panel.shadowRoot ?? panel;
@@ -69,92 +67,81 @@ async function refreshStudyMeta(
   }
 }
 
-function detachListRepairObserver(): void {
-  listRepairObserver?.disconnect();
-  listRepairObserver = null;
+function listNeedsPaint(hits: PositionNoteHit[]): boolean {
+  const panel = document.getElementById(PANEL_ID);
+  if (!panel) return false;
+  const list = panelRoot(panel).querySelector('.lpn-list');
+  if (!list) return true;
+  return hits.length > 0 && list.childElementCount !== hits.length;
 }
 
-async function renderPanel(hits: PositionNoteHit[]): Promise<void> {
+function paintHitList(hits: PositionNoteHit[]): void {
   const panel = document.getElementById(PANEL_ID);
   if (!panel) return;
-  if (renderingPanel) {
-    cachedHits = hits;
+
+  const root = panelRoot(panel);
+  const list = root.querySelector<HTMLElement>('.lpn-list');
+  const heading = root.querySelector<HTMLElement>('.lpn-prior-heading');
+  if (!list || !heading) return;
+
+  if (hits.length === 0) {
+    heading.textContent = 'No other indexed notes at this board';
+    heading.classList.add('lpn-prior-heading--quiet');
+    list.replaceChildren();
     return;
   }
 
-  renderingPanel = true;
-  detachListRepairObserver();
-  cachedHits = hits;
+  heading.textContent = `${hits.length} other note${hits.length === 1 ? '' : 's'} at this position`;
+  heading.classList.remove('lpn-prior-heading--quiet');
 
-  try {
-    const root = panelRoot(panel);
-    const prior = root.querySelector<HTMLDetailsElement>('.lpn-prior');
-    const list = root.querySelector<HTMLElement>('.lpn-list');
-    const heading = root.querySelector('.lpn-prior-heading');
-    if (!list || !heading || !prior) return;
+  const analysis = window.site?.analysis;
+  const hereStudy = analysis?.study?.data.study.id;
+  const hereChapter = analysis?.study?.vm.chapterId;
+  const herePath = analysis?.path;
 
-    if (hits.length === 0) {
-      heading.textContent = 'No other indexed notes at this board';
-      heading.classList.add('lpn-prior-heading--quiet');
-      prior.open = false;
-      list.replaceChildren();
-      return;
+  list.replaceChildren();
+  for (const hit of hits) {
+    const sameNode =
+      hit.studyId === hereStudy &&
+      hit.chapterId === hereChapter &&
+      hit.path &&
+      hit.path === herePath;
+
+    const item = el('div', 'lpn-hit');
+    const meta = el('div', 'lpn-hit-meta', formatSource(hit));
+    const body = el('div', 'lpn-hit-text', hit.text);
+    const actions = el('div', 'lpn-hit-actions');
+    const go = el(
+      'button',
+      'button button-empty button-no-upper',
+      'Go to note',
+    ) as HTMLButtonElement;
+    go.type = 'button';
+    go.addEventListener('click', () => void jumpToHit(hit));
+    actions.appendChild(go);
+    if (sameNode) {
+      meta.textContent += ' (this move)';
     }
-
-    heading.textContent = `${hits.length} other note${hits.length === 1 ? '' : 's'} at this position`;
-    heading.classList.remove('lpn-prior-heading--quiet');
-    prior.open = true;
-
-    const analysis = window.site?.analysis;
-    const hereStudy = analysis?.study?.data.study.id;
-    const hereChapter = analysis?.study?.vm.chapterId;
-    const herePath = analysis?.path;
-
-    const frag = document.createDocumentFragment();
-    for (const hit of hits) {
-      const sameNode =
-        hit.studyId === hereStudy &&
-        hit.chapterId === hereChapter &&
-        hit.path &&
-        hit.path === herePath;
-
-      const item = el('div', 'lpn-hit');
-      const meta = el('div', 'lpn-hit-meta', formatSource(hit));
-      const body = el('div', 'lpn-hit-text', hit.text);
-      const actions = el('div', 'lpn-hit-actions');
-      const go = el(
-        'button',
-        'button button-empty button-no-upper',
-        'Go to note',
-      ) as HTMLButtonElement;
-      go.type = 'button';
-      go.addEventListener('click', () => void jumpToHit(hit));
-      actions.appendChild(go);
-      if (sameNode) {
-        meta.textContent += ' (this move)';
-      }
-      item.append(meta, body, actions);
-      frag.appendChild(item);
-    }
-    list.replaceChildren(frag);
-  } finally {
-    renderingPanel = false;
-    attachListRepairObserver(panel);
-    if (cachedHits !== hits && cachedHits.length > 0) {
-      void renderPanel(cachedHits);
-    }
+    item.append(meta, body, actions);
+    list.appendChild(item);
   }
 }
 
 async function refreshForFen(fen: string, force = false): Promise<void> {
   const key = positionKeyFromFen(fen);
-  if (!force && key === currentKey) return;
   const token = ++refreshToken;
   const hits = await getByPositionKey(key);
   if (token !== refreshToken) return;
   if (!document.getElementById(PANEL_ID)) return;
+
+  const repaint = force || key !== currentKey || listNeedsPaint(hits);
   currentKey = key;
-  await renderPanel(hits);
+  if (!repaint) return;
+
+  paintHitList(hits);
+  requestAnimationFrame(() => {
+    if (listNeedsPaint(hits)) paintHitList(hits);
+  });
 }
 
 function refreshForCurrentFen(force = false): void {
@@ -165,8 +152,9 @@ function refreshForCurrentFen(force = false): void {
 function panelStyleText(): string {
   return `
     :host { display: block; margin: 0.65rem 0 0; padding: 0; border: 0; color: inherit; }
-    .lpn-prior { margin: 0.5rem 0 0; }
-    .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.35rem; cursor: pointer; }
+    .lpn-prior { margin: 0.5rem 0 0; display: block; }
+    .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.35rem; }
+    .lpn-list { display: block; min-height: 0.25rem; }
     .lpn-prior-heading--quiet { font-weight: normal; opacity: 0.75; }
     .lpn-hit { margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--border, #333); }
     .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; }
@@ -181,24 +169,6 @@ function panelStyleText(): string {
   `;
 }
 
-function attachListRepairObserver(panel: HTMLElement): void {
-  if (listRepairObserver) return;
-  const root = panelRoot(panel);
-  const list = root.querySelector('.lpn-list');
-  if (!list) return;
-
-  let repairing = false;
-  listRepairObserver = new MutationObserver(() => {
-    if (repairing || cachedHits.length === 0) return;
-    if (list.childElementCount > 0) return;
-    repairing = true;
-    void renderPanel(cachedHits).finally(() => {
-      repairing = false;
-    });
-  });
-  listRepairObserver.observe(list, { childList: true });
-}
-
 function buildPanel(): HTMLElement {
   const panel = el('div');
   panel.id = PANEL_ID;
@@ -207,14 +177,13 @@ function buildPanel(): HTMLElement {
   style.textContent = panelStyleText();
   shadow.appendChild(style);
 
-  const prior = el('details', 'lpn-prior') as HTMLDetailsElement;
-  prior.open = true;
-  const heading = el('summary', 'lpn-prior-heading', '');
+  const prior = el('section', 'lpn-prior');
+  const heading = el('div', 'lpn-prior-heading', '');
   const list = el('div', 'lpn-list');
   prior.append(heading, list);
 
   const details = el('details', 'lpn-meta');
-  const summary = el('summary', '', 'Position notes index');
+  const summary = el('summary', '', `Position notes · v${LPN_VERSION}`);
   const toolbar = el('div', 'lpn-toolbar');
   const importBtn = el(
     'button',
@@ -276,7 +245,6 @@ function buildPanel(): HTMLElement {
   shadow.append(prior, details);
 
   void refreshStudyMeta(summary, studyIdFromLocation());
-  attachListRepairObserver(panel);
   panelBuilt = true;
 
   return panel;
@@ -326,7 +294,6 @@ function ensurePanelNow(): void {
 
   if (!panelBuilt || !panel) {
     if (panel) panel.remove();
-    detachListRepairObserver();
     panel = buildPanel();
   } else if (panel && !panel.isConnected) {
     /* keep single built panel; re-mount below */

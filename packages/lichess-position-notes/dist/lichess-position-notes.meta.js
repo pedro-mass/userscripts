@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      0.1.5
+// @version      0.1.6
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
