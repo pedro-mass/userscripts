@@ -11,9 +11,13 @@ import type { PositionNoteHit } from './types';
 
 const PANEL_ID = 'lpn-position-notes-panel';
 const STATUS_CLEAR_MS = 4000;
+const ENSURE_BACKUP_MS = 3000;
 
 let currentKey = '';
 let statusTimer: number | undefined;
+let panelBuilt = false;
+let ensureQueued = false;
+let underboardObserver: MutationObserver | null = null;
 
 function el(tag: string, className?: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
@@ -210,68 +214,129 @@ function buildPanel(): HTMLElement {
   panel.append(prior, details);
 
   void refreshStudyMeta(summary, studyIdFromLocation());
+  panelBuilt = true;
 
   return panel;
 }
 
-/** Anchor after Lichess comment textarea (inside Snabbdom-managed study__comments). */
-function commentFormAnchor(): HTMLFormElement | null {
-  return document.querySelector<HTMLFormElement>(
-    '.analyse__underboard .study__comments form.form3',
-  );
+function underboardRoot(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('.analyse__underboard');
 }
 
-function mountPanel(panel: HTMLElement): void {
-  const form = commentFormAnchor();
-  if (form?.parentElement) {
-    if (panel.previousElementSibling === form) return;
-    form.insertAdjacentElement('afterend', panel);
-    return;
-  }
+/** Outside Snabbdom's study__comments tree — directly after the comments panel. */
+function isPanelPlaced(panel: HTMLElement): boolean {
+  const underboard = underboardRoot();
+  if (!underboard?.contains(panel)) return false;
+  const comments = underboard.querySelector('.study__comments');
+  return Boolean(comments && panel.previousElementSibling === comments);
+}
 
-  const underboard = document.querySelector<HTMLElement>('.analyse__underboard');
-  const buttons = underboard?.querySelector('.study__buttons');
-  if (!underboard || !buttons) return;
+function mountPanel(panel: HTMLElement): boolean {
+  const underboard = underboardRoot();
+  if (!underboard) return false;
 
   const comments = underboard.querySelector('.study__comments');
   if (comments?.parentElement && underboard.contains(comments)) {
-    if (panel.previousElementSibling === comments) return;
+    if (panel.previousElementSibling === comments && panel.parentElement === underboard) {
+      return true;
+    }
     comments.insertAdjacentElement('afterend', panel);
-    return;
+    return true;
   }
 
-  const toolPanel = buttons.nextElementSibling;
-  if (toolPanel && underboard.contains(toolPanel)) {
-    if (panel.previousElementSibling === toolPanel) return;
-    toolPanel.insertAdjacentElement('beforebegin', panel);
+  const buttons = underboard.querySelector('.study__buttons');
+  if (!buttons) return false;
+
+  const afterButtons = buttons.nextElementSibling;
+  if (afterButtons && panel.previousElementSibling === afterButtons) return true;
+  if (afterButtons) {
+    afterButtons.insertAdjacentElement('afterend', panel);
   } else {
     buttons.insertAdjacentElement('afterend', panel);
   }
+  return true;
 }
 
-/** Snabbdom replaces study__comments; re-attach after the comment form when possible. */
-function ensurePanel(): void {
+function ensurePanelNow(): void {
   let panel = document.getElementById(PANEL_ID) as HTMLElement | null;
-  if (panel?.isConnected) {
-    mountPanel(panel);
-    return;
+  if (panel?.isConnected && isPanelPlaced(panel)) return;
+
+  if (!panelBuilt || !panel) {
+    if (panel) panel.remove();
+    panel = buildPanel();
+  } else if (panel && !panel.isConnected) {
+    /* keep single built panel; re-mount below */
   }
 
-  if (panel) panel.remove();
-  panel = buildPanel();
+  if (!panel) return;
   mountPanel(panel);
+}
 
-  void waitForAnalysis().then(() => {
-    const fen = window.site?.analysis?.node?.fen;
-    if (fen) void refreshForFen(fen);
+function scheduleEnsurePanel(): void {
+  if (ensureQueued) return;
+  ensureQueued = true;
+  requestAnimationFrame(() => {
+    ensureQueued = false;
+    ensurePanelNow();
   });
 }
 
+function watchUnderboard(): void {
+  const root = underboardRoot();
+  if (!root) return;
+  if (underboardObserver) return;
+
+  underboardObserver = new MutationObserver((records) => {
+    const panel = document.getElementById(PANEL_ID);
+    if (panel?.isConnected && isPanelPlaced(panel)) return;
+
+    for (const record of records) {
+      if (record.type !== 'childList') continue;
+      for (const node of Array.from(record.addedNodes)) {
+        if (node instanceof HTMLElement) {
+          if (
+            node.classList.contains('study__comments') ||
+            node.querySelector?.('.study__comments')
+          ) {
+            scheduleEnsurePanel();
+            return;
+          }
+        }
+      }
+    }
+    if (!panel?.isConnected) scheduleEnsurePanel();
+  });
+
+  underboardObserver.observe(root, { childList: true, subtree: false });
+}
+
+function waitForUnderboard(): void {
+  const poll = (): void => {
+    const root = underboardRoot();
+    if (!root) {
+      window.setTimeout(poll, 200);
+      return;
+    }
+    watchUnderboard();
+    scheduleEnsurePanel();
+  };
+  poll();
+}
+
+/** Snabbdom owns study__comments; we stay a sibling under analyse__underboard. */
+function startPanelWatch(): void {
+  waitForUnderboard();
+
+  window.setInterval(() => {
+    const panel = document.getElementById(PANEL_ID);
+    if (panel?.isConnected && isPanelPlaced(panel)) return;
+    if (underboardRoot()) watchUnderboard();
+    scheduleEnsurePanel();
+  }, ENSURE_BACKUP_MS);
+}
+
 export function startUi(): void {
-  ensurePanel();
-  const observer = new MutationObserver(() => ensurePanel());
-  observer.observe(document.body, { childList: true, subtree: true });
-  window.setInterval(ensurePanel, 800);
+  startPanelWatch();
 
   void waitForAnalysis().then(() => {
     const fen = window.site?.analysis?.node?.fen;
@@ -285,5 +350,5 @@ export function startUi(): void {
 
 export function isMounted(): boolean {
   const panel = document.getElementById(PANEL_ID);
-  return Boolean(panel?.isConnected);
+  return Boolean(panel?.isConnected && isPanelPlaced(panel));
 }

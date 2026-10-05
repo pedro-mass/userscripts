@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      0.1.3
+// @version      0.1.4
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
@@ -2903,8 +2903,12 @@
   }
   const PANEL_ID = "lpn-position-notes-panel";
   const STATUS_CLEAR_MS = 4e3;
+  const ENSURE_BACKUP_MS = 3e3;
   let currentKey = "";
   let statusTimer;
+  let panelBuilt = false;
+  let ensureQueued = false;
+  let underboardObserver = null;
   function el(tag, className, text) {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -3073,57 +3077,104 @@
     details.append(summary, toolbar, status);
     panel.append(prior, details);
     void refreshStudyMeta(summary, studyIdFromLocation());
+    panelBuilt = true;
     return panel;
   }
-  function commentFormAnchor() {
-    return document.querySelector(
-      ".analyse__underboard .study__comments form.form3"
-    );
+  function underboardRoot() {
+    return document.querySelector(".analyse__underboard");
+  }
+  function isPanelPlaced(panel) {
+    const underboard = underboardRoot();
+    if (!(underboard == null ? void 0 : underboard.contains(panel))) return false;
+    const comments = underboard.querySelector(".study__comments");
+    return Boolean(comments && panel.previousElementSibling === comments);
   }
   function mountPanel(panel) {
-    const form = commentFormAnchor();
-    if (form == null ? void 0 : form.parentElement) {
-      if (panel.previousElementSibling === form) return;
-      form.insertAdjacentElement("afterend", panel);
-      return;
-    }
-    const underboard = document.querySelector(".analyse__underboard");
-    const buttons = underboard == null ? void 0 : underboard.querySelector(".study__buttons");
-    if (!underboard || !buttons) return;
+    const underboard = underboardRoot();
+    if (!underboard) return false;
     const comments = underboard.querySelector(".study__comments");
     if ((comments == null ? void 0 : comments.parentElement) && underboard.contains(comments)) {
-      if (panel.previousElementSibling === comments) return;
+      if (panel.previousElementSibling === comments && panel.parentElement === underboard) {
+        return true;
+      }
       comments.insertAdjacentElement("afterend", panel);
-      return;
+      return true;
     }
-    const toolPanel = buttons.nextElementSibling;
-    if (toolPanel && underboard.contains(toolPanel)) {
-      if (panel.previousElementSibling === toolPanel) return;
-      toolPanel.insertAdjacentElement("beforebegin", panel);
+    const buttons = underboard.querySelector(".study__buttons");
+    if (!buttons) return false;
+    const afterButtons = buttons.nextElementSibling;
+    if (afterButtons && panel.previousElementSibling === afterButtons) return true;
+    if (afterButtons) {
+      afterButtons.insertAdjacentElement("afterend", panel);
     } else {
       buttons.insertAdjacentElement("afterend", panel);
     }
+    return true;
   }
-  function ensurePanel() {
+  function ensurePanelNow() {
     let panel = document.getElementById(PANEL_ID);
-    if (panel == null ? void 0 : panel.isConnected) {
-      mountPanel(panel);
-      return;
-    }
-    if (panel) panel.remove();
-    panel = buildPanel();
+    if ((panel == null ? void 0 : panel.isConnected) && isPanelPlaced(panel)) return;
+    if (!panelBuilt || !panel) {
+      if (panel) panel.remove();
+      panel = buildPanel();
+    } else if (panel && !panel.isConnected) ;
+    if (!panel) return;
     mountPanel(panel);
-    void waitForAnalysis().then(() => {
-      var _a, _b, _c;
-      const fen = (_c = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.node) == null ? void 0 : _c.fen;
-      if (fen) void refreshForFen(fen);
+  }
+  function scheduleEnsurePanel() {
+    if (ensureQueued) return;
+    ensureQueued = true;
+    requestAnimationFrame(() => {
+      ensureQueued = false;
+      ensurePanelNow();
     });
   }
+  function watchUnderboard() {
+    const root = underboardRoot();
+    if (!root) return;
+    if (underboardObserver) return;
+    underboardObserver = new MutationObserver((records) => {
+      var _a;
+      const panel = document.getElementById(PANEL_ID);
+      if ((panel == null ? void 0 : panel.isConnected) && isPanelPlaced(panel)) return;
+      for (const record of records) {
+        if (record.type !== "childList") continue;
+        for (const node of Array.from(record.addedNodes)) {
+          if (node instanceof HTMLElement) {
+            if (node.classList.contains("study__comments") || ((_a = node.querySelector) == null ? void 0 : _a.call(node, ".study__comments"))) {
+              scheduleEnsurePanel();
+              return;
+            }
+          }
+        }
+      }
+      if (!(panel == null ? void 0 : panel.isConnected)) scheduleEnsurePanel();
+    });
+    underboardObserver.observe(root, { childList: true, subtree: false });
+  }
+  function waitForUnderboard() {
+    const poll = () => {
+      const root = underboardRoot();
+      if (!root) {
+        window.setTimeout(poll, 200);
+        return;
+      }
+      watchUnderboard();
+      scheduleEnsurePanel();
+    };
+    poll();
+  }
+  function startPanelWatch() {
+    waitForUnderboard();
+    window.setInterval(() => {
+      const panel = document.getElementById(PANEL_ID);
+      if ((panel == null ? void 0 : panel.isConnected) && isPanelPlaced(panel)) return;
+      if (underboardRoot()) watchUnderboard();
+      scheduleEnsurePanel();
+    }, ENSURE_BACKUP_MS);
+  }
   function startUi() {
-    ensurePanel();
-    const observer = new MutationObserver(() => ensurePanel());
-    observer.observe(document.body, { childList: true, subtree: true });
-    window.setInterval(ensurePanel, 800);
+    startPanelWatch();
     void waitForAnalysis().then(() => {
       var _a, _b, _c, _d, _e;
       const fen = (_c = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.node) == null ? void 0 : _c.fen;
