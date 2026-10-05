@@ -23,9 +23,6 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE)) {
         store = db.createObjectStore(STORE, { keyPath: 'id' });
         store.createIndex('positionKey', 'positionKey', { unique: false });
-        store.createIndex('studyChapterPath', ['studyId', 'chapterId', 'path'], {
-          unique: false,
-        });
         store.createIndex('studyId', 'studyId', { unique: false });
       } else {
         store = req.transaction!.objectStore(STORE);
@@ -42,16 +39,6 @@ export async function deleteHitById(id: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-export async function upsertHit(hit: PositionNoteHit): Promise<void> {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put(hit);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });

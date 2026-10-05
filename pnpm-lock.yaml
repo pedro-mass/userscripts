@@ -57,9 +57,6 @@ importers:
 
   packages/lichess-position-notes:
     dependencies:
-      '@userscripts/shared':
-        specifier: workspace:*
-        version: link:../shared
       chessops:
         specifier: ^0.14.2
         version: 0.14.2

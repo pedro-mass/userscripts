@@ -18,7 +18,7 @@ import { positionKeyFromFen } from './position-key';
 import type { PositionNoteHit } from './types';
 
 const PANEL_ID = 'lpn-position-notes-panel';
-const LPN_VERSION = '1.0.1';
+const LPN_VERSION = '1.0.2';
 const STATUS_CLEAR_MS = 4000;
 const ENSURE_BACKUP_MS = 3000;
 
@@ -398,9 +398,4 @@ export function startUi(): void {
       if (typeof fen === 'string') void refreshForFen(fen);
     });
   });
-}
-
-export function isMounted(): boolean {
-  const panel = document.getElementById(PANEL_ID);
-  return Boolean(panel?.isConnected && isPanelPlaced(panel));
 }

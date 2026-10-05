@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      1.0.1
+// @version      1.0.2
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
@@ -35,9 +35,6 @@
         if (!db.objectStoreNames.contains(STORE)) {
           store = db.createObjectStore(STORE, { keyPath: "id" });
           store.createIndex("positionKey", "positionKey", { unique: false });
-          store.createIndex("studyChapterPath", ["studyId", "chapterId", "path"], {
-            unique: false
-          });
           store.createIndex("studyId", "studyId", { unique: false });
         } else {
           store = req.transaction.objectStore(STORE);
@@ -3012,7 +3009,7 @@
     return dedupeNewestPerChapter(others);
   }
   const PANEL_ID = "lpn-position-notes-panel";
-  const LPN_VERSION = "1.0.1";
+  const LPN_VERSION = "1.0.2";
   const STATUS_CLEAR_MS = 4e3;
   const ENSURE_BACKUP_MS = 3e3;
   let currentKey = "";
