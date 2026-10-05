@@ -10,7 +10,7 @@ import { positionKeyFromFen } from './position-key';
 import type { PositionNoteHit } from './types';
 
 const PANEL_ID = 'lpn-position-notes-panel';
-const LPN_VERSION = '0.1.7';
+const LPN_VERSION = '0.1.8';
 const STATUS_CLEAR_MS = 4000;
 const ENSURE_BACKUP_MS = 3000;
 
@@ -67,12 +67,33 @@ async function refreshStudyMeta(
   }
 }
 
+function isCurrentChapterNote(hit: PositionNoteHit): boolean {
+  const analysis = window.site?.analysis;
+  const study = analysis?.study;
+  if (!study) return false;
+
+  const hereStudy = study.data?.id;
+  const hereChapter = study.vm.chapterId;
+  if (hit.studyId !== hereStudy || hit.chapterId !== hereChapter) return false;
+
+  const herePath = analysis.path;
+  if (hit.path && herePath) return hit.path === herePath;
+
+  const ply = analysis.node?.ply;
+  return ply !== undefined && hit.ply === ply;
+}
+
+function hitsForDisplay(hits: PositionNoteHit[]): PositionNoteHit[] {
+  return hits.filter((hit) => !isCurrentChapterNote(hit));
+}
+
 function listNeedsPaint(hits: PositionNoteHit[]): boolean {
+  const visible = hitsForDisplay(hits);
   const panel = document.getElementById(PANEL_ID);
   if (!panel) return false;
   const list = panelRoot(panel).querySelector('.lpn-list');
   if (!list) return true;
-  return hits.length > 0 && list.childElementCount !== hits.length;
+  return list.childElementCount !== visible.length;
 }
 
 function paintHitList(hits: PositionNoteHit[]): void {
@@ -84,46 +105,30 @@ function paintHitList(hits: PositionNoteHit[]): void {
   const heading = root.querySelector<HTMLElement>('.lpn-prior-heading');
   if (!list || !heading) return;
 
-  if (hits.length === 0) {
+  const visible = hitsForDisplay(hits);
+
+  if (visible.length === 0) {
     heading.textContent = 'No other indexed notes at this board';
     heading.classList.add('lpn-prior-heading--quiet');
     list.replaceChildren();
     return;
   }
 
-  const analysis = window.site?.analysis;
-  const hereStudy = analysis?.study?.data?.id;
-  const hereChapter = analysis?.study?.vm.chapterId;
-  const herePath = analysis?.path;
-
   list.replaceChildren();
-  for (const hit of hits) {
-    const sameNode =
-      hit.studyId === hereStudy &&
-      hit.chapterId === hereChapter &&
-      hit.path &&
-      hit.path === herePath;
-
+  for (const hit of visible) {
     const item = el('div', 'lpn-hit');
+    const go = el('button', 'lpn-hit-go', '↗') as HTMLButtonElement;
+    go.type = 'button';
+    go.title = 'Open this note';
+    go.setAttribute('aria-label', 'Open this note');
+    go.addEventListener('click', () => void jumpToHit(hit));
     const meta = el('div', 'lpn-hit-meta', formatSource(hit));
     const body = el('div', 'lpn-hit-text', hit.text);
-    const actions = el('div', 'lpn-hit-actions');
-    const go = el(
-      'button',
-      'button button-empty button-no-upper',
-      'Go to note',
-    ) as HTMLButtonElement;
-    go.type = 'button';
-    go.addEventListener('click', () => void jumpToHit(hit));
-    actions.appendChild(go);
-    if (sameNode) {
-      meta.textContent += ' (this move)';
-    }
-    item.append(meta, body, actions);
+    item.append(go, meta, body);
     list.appendChild(item);
   }
 
-  heading.textContent = `${hits.length} other note${hits.length === 1 ? '' : 's'} at this position`;
+  heading.textContent = `${visible.length} other note${visible.length === 1 ? '' : 's'} at this position`;
   heading.classList.remove('lpn-prior-heading--quiet');
 }
 
@@ -156,8 +161,10 @@ function panelStyleText(): string {
     .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.35rem; }
     .lpn-list { display: block; min-height: 0.25rem; }
     .lpn-prior-heading--quiet { font-weight: normal; opacity: 0.75; }
-    .lpn-hit { margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--border, #333); }
-    .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; }
+    .lpn-hit { position: relative; margin-bottom: 0.65rem; padding: 0 1.6rem 0.65rem 0; border-bottom: 1px solid var(--border, #333); }
+    .lpn-hit-go { position: absolute; top: 0; right: 0; padding: 0.1rem 0.25rem; border: 0; background: transparent; color: inherit; font-size: 1rem; line-height: 1; cursor: pointer; opacity: 0.75; }
+    .lpn-hit-go:hover { opacity: 1; }
+    .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; padding-right: 0.25rem; }
     .lpn-hit-text { white-space: pre-wrap; font-size: 0.9rem; }
     .lpn-meta { margin-top: 0.75rem; font-size: 0.8rem; opacity: 0.9; }
     .lpn-meta summary { cursor: pointer; user-select: none; }

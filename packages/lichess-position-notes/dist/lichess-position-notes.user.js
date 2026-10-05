@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lichess: Study position notes
 // @namespace    https://github.com/pedro-mass/userscripts/lichess-position-notes
-// @version      0.1.7
+// @version      0.1.8
 // @author       pedro-mass
 // @description  Index your study comments by position (FEN) and show prior notes when you revisit the same board.
 // @license      GNU GPLv3
@@ -2902,7 +2902,7 @@
     return all;
   }
   const PANEL_ID = "lpn-position-notes-panel";
-  const LPN_VERSION = "0.1.7";
+  const LPN_VERSION = "0.1.8";
   const STATUS_CLEAR_MS = 4e3;
   const ENSURE_BACKUP_MS = 3e3;
   let currentKey = "";
@@ -2946,53 +2946,58 @@
       summary.textContent = `Index · ${total} note${total === 1 ? "" : "s"} (study not imported)`;
     }
   }
+  function isCurrentChapterNote(hit) {
+    var _a, _b, _c;
+    const analysis = (_a = window.site) == null ? void 0 : _a.analysis;
+    const study = analysis == null ? void 0 : analysis.study;
+    if (!study) return false;
+    const hereStudy = (_b = study.data) == null ? void 0 : _b.id;
+    const hereChapter = study.vm.chapterId;
+    if (hit.studyId !== hereStudy || hit.chapterId !== hereChapter) return false;
+    const herePath = analysis.path;
+    if (hit.path && herePath) return hit.path === herePath;
+    const ply = (_c = analysis.node) == null ? void 0 : _c.ply;
+    return ply !== void 0 && hit.ply === ply;
+  }
+  function hitsForDisplay(hits) {
+    return hits.filter((hit) => !isCurrentChapterNote(hit));
+  }
   function listNeedsPaint(hits) {
+    const visible = hitsForDisplay(hits);
     const panel = document.getElementById(PANEL_ID);
     if (!panel) return false;
     const list = panelRoot(panel).querySelector(".lpn-list");
     if (!list) return true;
-    return hits.length > 0 && list.childElementCount !== hits.length;
+    return list.childElementCount !== visible.length;
   }
   function paintHitList(hits) {
-    var _a, _b, _c, _d;
     const panel = document.getElementById(PANEL_ID);
     if (!panel) return;
     const root = panelRoot(panel);
     const list = root.querySelector(".lpn-list");
     const heading = root.querySelector(".lpn-prior-heading");
     if (!list || !heading) return;
-    if (hits.length === 0) {
+    const visible = hitsForDisplay(hits);
+    if (visible.length === 0) {
       heading.textContent = "No other indexed notes at this board";
       heading.classList.add("lpn-prior-heading--quiet");
       list.replaceChildren();
       return;
     }
-    const analysis = (_a = window.site) == null ? void 0 : _a.analysis;
-    const hereStudy = (_c = (_b = analysis == null ? void 0 : analysis.study) == null ? void 0 : _b.data) == null ? void 0 : _c.id;
-    const hereChapter = (_d = analysis == null ? void 0 : analysis.study) == null ? void 0 : _d.vm.chapterId;
-    const herePath = analysis == null ? void 0 : analysis.path;
     list.replaceChildren();
-    for (const hit of hits) {
-      const sameNode = hit.studyId === hereStudy && hit.chapterId === hereChapter && hit.path && hit.path === herePath;
+    for (const hit of visible) {
       const item = el("div", "lpn-hit");
+      const go = el("button", "lpn-hit-go", "↗");
+      go.type = "button";
+      go.title = "Open this note";
+      go.setAttribute("aria-label", "Open this note");
+      go.addEventListener("click", () => void jumpToHit(hit));
       const meta = el("div", "lpn-hit-meta", formatSource(hit));
       const body = el("div", "lpn-hit-text", hit.text);
-      const actions = el("div", "lpn-hit-actions");
-      const go = el(
-        "button",
-        "button button-empty button-no-upper",
-        "Go to note"
-      );
-      go.type = "button";
-      go.addEventListener("click", () => void jumpToHit(hit));
-      actions.appendChild(go);
-      if (sameNode) {
-        meta.textContent += " (this move)";
-      }
-      item.append(meta, body, actions);
+      item.append(go, meta, body);
       list.appendChild(item);
     }
-    heading.textContent = `${hits.length} other note${hits.length === 1 ? "" : "s"} at this position`;
+    heading.textContent = `${visible.length} other note${visible.length === 1 ? "" : "s"} at this position`;
     heading.classList.remove("lpn-prior-heading--quiet");
   }
   async function refreshForFen(fen, force = false) {
@@ -3021,8 +3026,10 @@
     .lpn-prior-heading { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.35rem; }
     .lpn-list { display: block; min-height: 0.25rem; }
     .lpn-prior-heading--quiet { font-weight: normal; opacity: 0.75; }
-    .lpn-hit { margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--border, #333); }
-    .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; }
+    .lpn-hit { position: relative; margin-bottom: 0.65rem; padding: 0 1.6rem 0.65rem 0; border-bottom: 1px solid var(--border, #333); }
+    .lpn-hit-go { position: absolute; top: 0; right: 0; padding: 0.1rem 0.25rem; border: 0; background: transparent; color: inherit; font-size: 1rem; line-height: 1; cursor: pointer; opacity: 0.75; }
+    .lpn-hit-go:hover { opacity: 1; }
+    .lpn-hit-meta { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; padding-right: 0.25rem; }
     .lpn-hit-text { white-space: pre-wrap; font-size: 0.9rem; }
     .lpn-meta { margin-top: 0.75rem; font-size: 0.8rem; opacity: 0.9; }
     .lpn-meta summary { cursor: pointer; user-select: none; }
