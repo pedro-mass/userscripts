@@ -15,7 +15,9 @@ const LAUNCH_HINT =
 
 function readProbe(page) {
   return page.evaluate(() => {
-    const raw = document.getElementById('pam-ct-mirror-probe')?.textContent;
+    const raw =
+      document.getElementById('pam-ct-mirror-wrap')?.getAttribute('data-pam-probe') ??
+      document.getElementById('pam-ct-mirror-probe')?.textContent;
     let probe = null;
     if (raw) {
       try {

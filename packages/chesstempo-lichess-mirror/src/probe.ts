@@ -6,7 +6,9 @@ import {
   getTargetId,
 } from './sync';
 
-const PROBE_ID = 'pam-ct-mirror-probe';
+/** CDP/agents read JSON from this element's data attribute (no extra nodes on `<html>`). */
+export const PROBE_WRAP_ID = 'pam-ct-mirror-wrap';
+const PROBE_ATTR = 'data-pam-probe';
 
 export type MirrorProbeState = {
   v: 1;
@@ -24,10 +26,30 @@ export type MirrorProbeState = {
   lastAppliedSeq: number | null;
 };
 
+let lastProbeJson = '';
+
+/** Remove legacy probe nodes that tripped extension attribute observers. */
+export function removeLegacyProbeNodes(): void {
+  document.getElementById('pam-ct-mirror-probe')?.remove();
+}
+
+/** Lichess has no mirror UI; use a zero-size host on `body` once. */
+export function ensureProbeHost(): void {
+  if (document.getElementById(PROBE_WRAP_ID)) return;
+  const el = document.createElement('div');
+  el.id = PROBE_WRAP_ID;
+  el.style.cssText =
+    'position:fixed;width:0;height:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;';
+  document.body.append(el);
+}
+
 export function writeDomProbe(partial: {
   lastFen?: string | null;
   seq?: number | null;
 }): void {
+  const anchor = document.getElementById(PROBE_WRAP_ID);
+  if (!anchor) return;
+
   const seq =
     partial.seq ??
     GM_getValue<number | null>('ctLichessMirror.seq', null) ??
@@ -48,22 +70,18 @@ export function writeDomProbe(partial: {
     lastAppliedSeq: getLastAppliedSeq(),
   };
 
-  let el = document.getElementById(PROBE_ID) as HTMLScriptElement | null;
-  if (!el) {
-    el = document.createElement('script');
-    el.id = PROBE_ID;
-    el.type = 'application/json';
-    el.setAttribute('aria-hidden', 'true');
-    document.documentElement.append(el);
-  }
-  el.textContent = JSON.stringify(state);
+  const json = JSON.stringify(state);
+  if (json === lastProbeJson) return;
+  lastProbeJson = json;
+  anchor.setAttribute(PROBE_ATTR, json);
 }
 
 export function readDomProbeFromDocument(): MirrorProbeState | null {
-  const el = document.getElementById(PROBE_ID);
-  if (!el?.textContent) return null;
+  const anchor = document.getElementById(PROBE_WRAP_ID);
+  const raw = anchor?.getAttribute(PROBE_ATTR);
+  if (!raw) return null;
   try {
-    return JSON.parse(el.textContent) as MirrorProbeState;
+    return JSON.parse(raw) as MirrorProbeState;
   } catch {
     return null;
   }

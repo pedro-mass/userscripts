@@ -8,7 +8,11 @@ import { hookOpeningExplorerSetPosition } from './ct-page-hook';
 import { pieceSideKey } from './fen';
 import { analysisBoardUrl } from './fen';
 import { isDebugEnabled, mirrorLog } from './log';
-import { writeDomProbe } from './probe';
+import {
+  PROBE_WRAP_ID,
+  removeLegacyProbeNodes,
+  writeDomProbe,
+} from './probe';
 import {
   getTargetId,
   publishFromCt,
@@ -47,6 +51,7 @@ function injectUi(): void {
   if (!panel) return;
 
   const wrap = document.createElement('div');
+  wrap.id = PROBE_WRAP_ID;
   wrap.style.cssText =
     'display:flex;gap:8px;align-items:center;padding:6px 8px;flex-wrap:wrap;';
 
@@ -85,7 +90,8 @@ function injectUi(): void {
   });
 
   wrap.append(btn, status);
-  panel.prepend(wrap);
+  panel.append(wrap);
+  writeDomProbe({ lastFen });
 }
 
 function updateStatus(text: string): void {
@@ -94,12 +100,11 @@ function updateStatus(text: string): void {
 }
 
 export function startChesstempoMirror(): void {
+  removeLegacyProbeNodes();
   mirrorLog('info', 'CT mirror start', {
     injectInto: 'page',
     debug: isDebugEnabled(),
   });
-  writeDomProbe({ lastFen: null });
-
   hookOpeningExplorerSetPosition(onFenChange);
   startChessBoardPoll(onFenChange);
 

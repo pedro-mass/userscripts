@@ -7,7 +7,7 @@ import {
   singleMoveUci,
 } from './fen';
 import { mirrorLog } from './log';
-import { writeDomProbe } from './probe';
+import { ensureProbeHost, writeDomProbe } from './probe';
 import type { BottomColor, MirrorPayload } from './types';
 import {
   getLatestPayload,
@@ -133,6 +133,10 @@ async function drainPayload(payload: MirrorPayload): Promise<void> {
 }
 
 export function startLichessMirror(): void {
+  const mountProbe = () => ensureProbeHost();
+  if (document.body) mountProbe();
+  else document.addEventListener('DOMContentLoaded', mountProbe, { once: true });
+
   const fromUrl = parsePamMirrorParam();
   if (fromUrl) {
     setMirrorSessionId(fromUrl);

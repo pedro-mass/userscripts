@@ -45,7 +45,10 @@ export function fenDiagnostics(): Record<string, unknown> {
   return {
     openingExplorer: !!explorer,
     chessBoard: !!board,
-    domProbe: document.getElementById('pam-ct-mirror-probe')?.textContent?.slice(0, 120),
+    domProbe: document
+      .getElementById('pam-ct-mirror-wrap')
+      ?.getAttribute('data-pam-probe')
+      ?.slice(0, 120),
     toFen: readFenFromChessBoard(),
     pageHookFlag: !!(window as Window & { __pamCtPageHook?: boolean })
       .__pamCtPageHook,

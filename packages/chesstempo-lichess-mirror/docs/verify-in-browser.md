@@ -35,6 +35,10 @@ Checks: `__pamCtMirrorLoaded`, **Open in Lichess** button, `window.lichess.analy
 
 Manual acceptance: **Open in Lichess** → one new ply on CT → analysis animates or updates FEN.
 
+## Console noise on CT
+
+ChessTempo + some extensions (e.g. Tampermonkey `inject.js`) watch **attribute** mutations. Older mirror builds appended a probe `<script aria-hidden>` on `<html>` and triggered `Cannot read properties of null (reading 'aria-hidden')`. **0.1.6+** stores probe JSON on `#pam-ct-mirror-wrap` only and disconnects the explorer `MutationObserver` after hook.
+
 ## Debug logging
 
 Before 0.1.2, logging was minimal — hard to diagnose “no position” / no sync.
