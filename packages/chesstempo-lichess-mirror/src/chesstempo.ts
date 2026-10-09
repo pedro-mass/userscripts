@@ -12,19 +12,21 @@ let lastFen: string | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 function readFenFromExplorer(): string | null {
-  const explorer = document.querySelector('opening-explorer') as
-    | (HTMLElement & { fen?: string })
-    | null;
-  if (explorer?.fen) return explorer.fen;
+  if (lastFen) return lastFen;
+  const explorer = document.querySelector('opening-explorer');
+  const fromData = explorer?.getAttribute('data-pam-mirror-fen');
+  if (fromData) return fromData;
+  const el = explorer as (HTMLElement & { fen?: string }) | null;
+  if (el?.fen) return el.fen;
   return null;
 }
 
 function onFenChange(fen: string): void {
+  const prev = lastFen;
+  lastFen = fen;
   const targetId = getTargetId();
   if (!targetId) return;
 
-  const prev = lastFen;
-  lastFen = fen;
   updateStatus(`Mirror → Lichess (${targetId.slice(0, 8)}…)`);
 
   if (debounceTimer) clearTimeout(debounceTimer);
@@ -49,6 +51,7 @@ function hookOpeningExplorer(): void {
     const orig = explorer.setPosition.bind(explorer);
     explorer.setPosition = (fen: string) => {
       orig(fen);
+      explorer.setAttribute('data-pam-mirror-fen', fen);
       onFenChange(fen);
     };
 

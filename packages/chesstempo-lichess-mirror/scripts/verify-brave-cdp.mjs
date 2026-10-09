@@ -74,10 +74,10 @@ const liProbe = await liPage.evaluate(() => ({
     typeof GM_info !== 'undefined' ? GM_info?.script?.name ?? null : null,
 }));
 
+// TM may run in an isolated world: DOM probes (openBtn) are reliable; window.__pamCtMirrorLoaded may be undefined in CDP evaluate.
 const ok =
-  ctProbe.mirrorLoaded &&
   ctProbe.openBtn &&
-  liProbe.mirrorLoaded &&
+  ctProbe.openingExplorer &&
   liProbe.hasAnalysisApi;
 
 console.log(

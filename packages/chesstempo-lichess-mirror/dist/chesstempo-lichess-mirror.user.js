@@ -1479,15 +1479,19 @@
   let lastFen = null;
   let debounceTimer = null;
   function readFenFromExplorer() {
+    if (lastFen) return lastFen;
     const explorer = document.querySelector("opening-explorer");
-    if (explorer == null ? void 0 : explorer.fen) return explorer.fen;
+    const fromData = explorer == null ? void 0 : explorer.getAttribute("data-pam-mirror-fen");
+    if (fromData) return fromData;
+    const el = explorer;
+    if (el == null ? void 0 : el.fen) return el.fen;
     return null;
   }
   function onFenChange(fen) {
-    const targetId = getTargetId();
-    if (!targetId) return;
     const prev = lastFen;
     lastFen = fen;
+    const targetId = getTargetId();
+    if (!targetId) return;
     updateStatus(`Mirror → Lichess (${targetId.slice(0, 8)}…)`);
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
@@ -1504,6 +1508,7 @@
       const orig = explorer.setPosition.bind(explorer);
       explorer.setPosition = (fen) => {
         orig(fen);
+        explorer.setAttribute("data-pam-mirror-fen", fen);
         onFenChange(fen);
       };
       if (explorer.fen) onFenChange(explorer.fen);
