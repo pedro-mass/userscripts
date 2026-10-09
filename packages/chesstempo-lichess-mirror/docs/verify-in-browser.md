@@ -34,11 +34,9 @@ Manual acceptance: **Open in Lichess** → one new ply on CT → analysis animat
 
 ## Inject fallback (no Tampermonkey)
 
-`build` writes gitignored `dist/inject.js` (body only). Plain inject **does not** provide `GM_*` — sync will not cross tabs. Use only to smoke UI mount on CT:
+`build` writes gitignored `dist/inject.js` (body only). Plain inject **does not** provide `GM_*` — sync will not cross tabs.
 
-```bash
-node scripts/verify-inject-ct.mjs '<ct opening-training url>'
-```
+ChessTempo **CSP blocks** Playwright `addScriptTag` on opening training — expect failure. **Use Brave + Tampermonkey** for real verify; inject path is not supported on CT.
 
 ## Unit tests
 
