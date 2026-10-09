@@ -16,7 +16,7 @@ try {
       err: 'cdp_connect_failed',
       cdp: CDP,
       hint:
-        'Quit Brave (Cmd+Q), then: pedro-agent-manager/.work/scripts/launch-brave-remote-debug.sh',
+        'Quit Brave (Cmd+Q), then: pedro-agent-manager/scripts/launch-brave-remote-debug.sh',
       message: String(e),
     }),
   );

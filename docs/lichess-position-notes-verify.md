@@ -14,7 +14,7 @@ pnpm --filter @userscripts/lichess-position-notes build
 
 | Goal | Command |
 | --- | --- |
-| **Tampermonkey smoke (preferred)** | Launch Brave with remote debugging (see PAM `.work/scripts/launch-brave-remote-debug.sh`), install/update the userscript, then `node scripts/verify-lpn-brave-cdp.mjs 'https://lichess.org/study/<id>/<chapter>'` |
+| **Tampermonkey smoke (preferred)** | Launch Brave with remote debugging (`pedro-agent-manager/scripts/launch-brave-remote-debug.sh`), install/update the userscript, then `node scripts/verify-lpn-brave-cdp.mjs 'https://lichess.org/study/<id>/<chapter>'` |
 | **Headless Playwright inject** | `node scripts/verify-lichess-lpn-inject.mjs '<chapter url>'` — guest may hit private studies (`study_not_found_guest`) |
 | **CDP: inject full bundle** | `CDP_URL=ws://127.0.0.1:9222/devtools/browser/... node scripts/inject-lpn-via-cdp-url.mjs` |
 | **CDP: gzip chunk inject (large / in-app browser)** | `node scripts/make-lpn-cdp-chunks.mjs` then `CDP_URL=ws://... node scripts/inject-lpn-glass-cdp.mjs` |

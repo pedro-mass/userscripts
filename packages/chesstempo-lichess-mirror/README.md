@@ -25,3 +25,6 @@ pnpm --filter @userscripts/chesstempo-lichess-mirror dev
 ```
 
 Tests: `pnpm --filter @userscripts/chesstempo-lichess-mirror test`
+
+Browser verify (Brave + Tampermonkey): [docs/verify-in-browser.md](./docs/verify-in-browser.md).  
+Launch Brave CDP from PAM: `./scripts/launch-brave-remote-debug.sh`.

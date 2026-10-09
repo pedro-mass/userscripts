@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && node scripts/strip-userscript-header.mjs",
     "test": "node --import tsx --test src/fen-diff.test.ts",
+    "verify:brave": "node scripts/verify-brave-cdp.mjs",
+    "verify:inject": "node scripts/verify-inject-ct.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
