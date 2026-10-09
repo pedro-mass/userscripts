@@ -2,8 +2,8 @@ import { readFenFromChessBoard, readFenFromExplorerElement } from './ct-fen';
 import {
   getLastAppliedSeq,
   getMirrorSessionId,
+  getPairingTargetId,
   getPublishedSeq,
-  getTargetId,
 } from './sync';
 import { scriptVersion } from './version';
 
@@ -73,7 +73,7 @@ export function writeDomProbe(partial: {
     host: location.hostname,
     path: location.pathname + location.search,
     ts: Date.now(),
-    targetId: getTargetId(),
+    targetId: getPairingTargetId(),
     sessionId: getMirrorSessionId(),
     pamMirrorUrl: new URLSearchParams(location.search).get('pamMirror'),
     lastFen: partial.lastFen ?? null,

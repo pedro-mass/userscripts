@@ -5,6 +5,7 @@
  * (pnpm tm:serve) so TM shows the update diff, or run after pnpm tm:update opens it.
  */
 import { chromium } from 'playwright';
+import { cleanupMirrorTabs } from './brave-cdp-cleanup.mjs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -38,6 +39,7 @@ try {
 
 const server = await ensureServer();
 const ctx = browser.contexts()[0];
+const cleanupBefore = await cleanupMirrorTabs(ctx);
 
 let ask = ctx.pages().find((p) => {
   if (!p.url().includes('ask.html')) return false;
@@ -47,25 +49,46 @@ let ask = ctx.pages().find((p) => {
 if (!ask) {
   const page = await ctx.newPage();
   await page.goto(SCRIPT_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-  await page.waitForTimeout(2000);
+  for (let i = 0; i < 20; i++) {
+    if (ctx.pages().some((p) => p.url().includes('ask.html'))) break;
+    await page.waitForTimeout(500);
+  }
 }
 
 const candidates = ctx.pages().filter((p) => p.url().includes('ask.html'));
 let clicked = false;
 for (const page of candidates) {
-  const update = page.locator('input.button.install[value="Update"]');
-  if ((await update.count()) === 0) continue;
   const body = await page.locator('body').innerText();
   if (!body.includes('ChessTempo') && !body.includes('Lichess mirror')) continue;
+  let btn = null;
+  for (const label of ['Update', 'Reinstall', 'Install']) {
+    const loc = page.locator(`input.button.install[value="${label}"]`);
+    if ((await loc.count()) > 0) {
+      btn = loc.first();
+      break;
+    }
+  }
+  if (!btn) continue;
   await page.bringToFront();
-  await update.click();
+  await btn.click();
   clicked = true;
-  await page.waitForTimeout(1500);
+  await new Promise((r) => setTimeout(r, 800));
   break;
 }
 
-await browser.close();
+try {
+  await browser.close();
+} catch {
+  /* reinstall may detach CDP target */
+}
 if (server) server.kill();
 
-console.log(JSON.stringify({ ok: clicked, scriptUrl: SCRIPT_URL }, null, 2));
+const cleanupAfter = await cleanupMirrorTabs(ctx);
+console.log(
+  JSON.stringify(
+    { ok: clicked, scriptUrl: SCRIPT_URL, cleanupBefore, cleanupAfter },
+    null,
+    2,
+  ),
+);
 process.exit(clicked ? 0 : 1);

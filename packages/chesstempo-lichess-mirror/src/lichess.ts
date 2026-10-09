@@ -90,23 +90,28 @@ async function applyPosition(
   const here = currentFen();
   if (here && atTargetPosition(here, fen)) return true;
 
-  const tryPlay = (uci: string): boolean => {
-    playUci(uci);
-    const after = currentFen();
-    return !!(after && atTargetPosition(after, fen));
+  const tryPlay = async (uci: string): Promise<boolean> => {
+    try {
+      playUci(uci);
+    } catch (e) {
+      mirrorLog('warn', 'playUci threw', { uci, err: String(e) });
+      return false;
+    }
+    for (let i = 0; i < 12; i++) {
+      await new Promise((r) => requestAnimationFrame(r));
+      const after = currentFen();
+      if (after && atTargetPosition(after, fen)) return true;
+    }
+    return false;
   };
 
-  if (prevFen && here && pieceSideKey(here) === pieceSideKey(prevFen)) {
-    const uci = singleMoveUci(prevFen, fen);
-    if (uci && tryPlay(uci)) return true;
+  const fromFen = here ?? prevFen;
+  if (fromFen && !atTargetPosition(fromFen, fen)) {
+    const uci = singleMoveUci(fromFen, fen);
+    if (uci && (await tryPlay(uci))) return true;
   }
 
-  if (here && !atTargetPosition(here, fen)) {
-    const uci = singleMoveUci(here, fen);
-    if (uci && tryPlay(uci)) return true;
-  }
-
-  mirrorLog('info', 'navigate to FEN', { fen });
+  mirrorLog('info', 'navigate to FEN', { fen, here });
   navigateToFen(fen, bottomColor);
   return true;
 }
@@ -127,6 +132,9 @@ async function drainPayload(payload: MirrorPayload): Promise<void> {
     writeDomProbe({ lastFen: payload.fen, seq: payload.seq });
     await applyPosition(payload.fen, payload.prevFen, payload.bottomColor);
     markPayloadApplied(payload.seq);
+    mirrorLog('info', 'marked applied', { seq: payload.seq });
+  } catch (e) {
+    mirrorLog('warn', 'drain failed', { seq: payload.seq, err: String(e) });
   } finally {
     drainInFlight = false;
   }

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChessTempo → Lichess mirror
 // @namespace    https://github.com/pedro-mass/userscripts/chesstempo-lichess-mirror
-// @version      0.1.7
+// @version      0.1.8
 // @author       pedro-mass
 // @description  Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).
 // @license      GPL-3.0-only
@@ -28,8 +28,8 @@
   function scriptVersion() {
     var _a;
     try {
-      if ("0.1.7") {
-        return "0.1.7";
+      if ("0.1.8") {
+        return "0.1.8";
       }
     } catch {
     }
@@ -1547,6 +1547,12 @@
     const v = GM_getValue(TARGET_KEY, void 0);
     return (v == null ? void 0 : v.trim()) || null;
   }
+  function getPairingTargetId() {
+    if (location.hostname === "lichess.org") {
+      return parsePamMirrorParam() || getMirrorSessionId() || getTargetId() || null;
+    }
+    return getTargetId() || getMirrorSessionId() || parsePamMirrorParam() || null;
+  }
   function setTargetId(id) {
     GM_setValue(TARGET_KEY, id);
   }
@@ -1587,13 +1593,13 @@
     return lastAppliedSeq;
   }
   function payloadMatchesSession(payload) {
-    const targetId = getTargetId();
+    const targetId = getPairingTargetId();
     return !!(targetId && payload.targetId === targetId);
   }
   function shouldApply(payload) {
     if (!payloadMatchesSession(payload)) {
       mirrorLog("debug", "skip apply: target mismatch", {
-        have: getTargetId(),
+        have: getPairingTargetId(),
         want: payload.targetId
       });
       return false;
@@ -1680,7 +1686,7 @@
       host: location.hostname,
       path: location.pathname + location.search,
       ts: Date.now(),
-      targetId: getTargetId(),
+      targetId: getPairingTargetId(),
       sessionId: getMirrorSessionId(),
       pamMirrorUrl: new URLSearchParams(location.search).get("pamMirror"),
       lastFen: partial.lastFen ?? null,
@@ -1852,20 +1858,26 @@
     }
     const here = currentFen();
     if (here && atTargetPosition(here, fen)) return true;
-    const tryPlay = (uci) => {
-      playUci(uci);
-      const after = currentFen();
-      return !!(after && atTargetPosition(after, fen));
+    const tryPlay = async (uci) => {
+      try {
+        playUci(uci);
+      } catch (e2) {
+        mirrorLog("warn", "playUci threw", { uci, err: String(e2) });
+        return false;
+      }
+      for (let i = 0; i < 12; i++) {
+        await new Promise((r2) => requestAnimationFrame(r2));
+        const after = currentFen();
+        if (after && atTargetPosition(after, fen)) return true;
+      }
+      return false;
     };
-    if (prevFen && here && pieceSideKey(here) === pieceSideKey(prevFen)) {
-      const uci = singleMoveUci(prevFen, fen);
-      if (uci && tryPlay(uci)) return true;
+    const fromFen = here ?? prevFen;
+    if (fromFen && !atTargetPosition(fromFen, fen)) {
+      const uci = singleMoveUci(fromFen, fen);
+      if (uci && await tryPlay(uci)) return true;
     }
-    if (here && !atTargetPosition(here, fen)) {
-      const uci = singleMoveUci(here, fen);
-      if (uci && tryPlay(uci)) return true;
-    }
-    mirrorLog("info", "navigate to FEN", { fen });
+    mirrorLog("info", "navigate to FEN", { fen, here });
     navigateToFen(fen, bottomColor);
     return true;
   }
@@ -1884,6 +1896,9 @@
       writeDomProbe({ lastFen: payload.fen, seq: payload.seq });
       await applyPosition(payload.fen, payload.prevFen, payload.bottomColor);
       markPayloadApplied(payload.seq);
+      mirrorLog("info", "marked applied", { seq: payload.seq });
+    } catch (e2) {
+      mirrorLog("warn", "drain failed", { seq: payload.seq, err: String(e2) });
     } finally {
       drainInFlight = false;
     }

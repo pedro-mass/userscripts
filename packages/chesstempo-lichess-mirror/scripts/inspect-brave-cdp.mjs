@@ -7,6 +7,7 @@
  *   pnpm inspect:brave --watch   # poll every 3s
  */
 import { chromium } from 'playwright';
+import { cleanupMirrorTabs } from './brave-cdp-cleanup.mjs';
 
 const CDP = process.env.CDP_URL ?? 'http://127.0.0.1:9222';
 const watch = process.argv.includes('--watch');

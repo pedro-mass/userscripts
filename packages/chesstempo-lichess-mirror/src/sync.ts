@@ -1,3 +1,4 @@
+import { parsePamMirrorParam } from './fen';
 import { mirrorLog } from './log';
 import type { BottomColor, MirrorPayload } from './types';
 
@@ -17,6 +18,19 @@ export function setMirrorSessionId(id: string): void {
 export function getTargetId(): string | null {
   const v = GM_getValue<string | undefined>(TARGET_KEY, undefined);
   return v?.trim() || null;
+}
+
+/** Pairing id for matching incoming payloads to this tab. */
+export function getPairingTargetId(): string | null {
+  if (location.hostname === 'lichess.org') {
+    return (
+      parsePamMirrorParam() ||
+      getMirrorSessionId() ||
+      getTargetId() ||
+      null
+    );
+  }
+  return getTargetId() || getMirrorSessionId() || parsePamMirrorParam() || null;
 }
 
 export function setTargetId(id: string): void {
@@ -73,7 +87,7 @@ export function getLastAppliedSeq(): number {
 }
 
 export function payloadMatchesSession(payload: MirrorPayload): boolean {
-  const targetId = getTargetId();
+  const targetId = getPairingTargetId();
   return !!(targetId && payload.targetId === targetId);
 }
 
@@ -81,7 +95,7 @@ export function payloadMatchesSession(payload: MirrorPayload): boolean {
 export function shouldApply(payload: MirrorPayload): boolean {
   if (!payloadMatchesSession(payload)) {
     mirrorLog('debug', 'skip apply: target mismatch', {
-      have: getTargetId(),
+      have: getPairingTargetId(),
       want: payload.targetId,
     });
     return false;
