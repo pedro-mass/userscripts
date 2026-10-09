@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChessTempo → Lichess mirror
 // @namespace    https://github.com/pedro-mass/userscripts/chesstempo-lichess-mirror
-// @version      0.1.2
+// @version      0.1.3
 // @author       pedro-mass
 // @description  Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).
 // @license      GPL-3.0-only
@@ -60,8 +60,6 @@
   function readFenFromExplorerElement() {
     const explorer = document.querySelector("opening-explorer");
     if (!explorer) return null;
-    const fromData = explorer.getAttribute("data-pam-mirror-fen");
-    if (fromData) return fromData;
     if (explorer.fen) return explorer.fen;
     return null;
   }
@@ -73,31 +71,27 @@
     return fromBoard;
   }
   function fenDiagnostics() {
+    var _a, _b;
     const explorer = document.querySelector("opening-explorer");
     const board = document.querySelector("chess-board");
     return {
       openingExplorer: !!explorer,
-      explorerHook: (explorer == null ? void 0 : explorer.dataset.pamMirrorPageHook) === "1",
-      dataPamFen: explorer == null ? void 0 : explorer.getAttribute("data-pam-mirror-fen"),
       chessBoard: !!board,
+      domProbe: (_b = (_a = document.getElementById("pam-ct-mirror-probe")) == null ? void 0 : _a.textContent) == null ? void 0 : _b.slice(0, 120),
       toFen: readFenFromChessBoard(),
       pageHookFlag: !!window.__pamCtPageHook,
       injectFlag: document.documentElement.dataset.pamCtPageHookInjected
     };
   }
+  const hookedExplorers = /* @__PURE__ */ new WeakSet();
   function hookOpeningExplorerSetPosition(onFen) {
     const hookOne = (explorer) => {
-      if (!explorer.setPosition || explorer.dataset.pamMirrorPageHook === "1") {
-        return;
-      }
-      explorer.dataset.pamMirrorPageHook = "1";
+      if (!explorer.setPosition || hookedExplorers.has(explorer)) return;
+      hookedExplorers.add(explorer);
       const orig = explorer.setPosition.bind(explorer);
       explorer.setPosition = (fen) => {
         orig(fen);
-        if (fen) {
-          explorer.setAttribute("data-pam-mirror-fen", fen);
-          onFen(fen);
-        }
+        if (fen) onFen(fen);
       };
       if (explorer.fen) onFen(explorer.fen);
       mirrorLog("debug", "hooked opening-explorer.setPosition");
@@ -108,10 +102,16 @@
     };
     scan();
     customElements.whenDefined("opening-explorer").then(scan);
-    new MutationObserver(scan).observe(document.documentElement, {
-      childList: true,
-      subtree: true
-    });
+    let debounce = null;
+    new MutationObserver(() => {
+      if (debounce) return;
+      debounce = setTimeout(() => {
+        debounce = null;
+        const el = document.querySelector("opening-explorer");
+        if (!el || hookedExplorers.has(el)) return;
+        scan();
+      }, 300);
+    }).observe(document.documentElement, { childList: true, subtree: true });
   }
   class r {
     unwrap(r2, t2) {
@@ -1578,6 +1578,32 @@
     lastAppliedSeq = payload.seq;
     return true;
   }
+  const PROBE_ID = "pam-ct-mirror-probe";
+  function writeDomProbe(partial) {
+    const seq = partial.seq ?? GM_getValue("ctLichessMirror.seq", null) ?? null;
+    const state = {
+      v: 1,
+      host: location.hostname,
+      path: location.pathname + location.search,
+      ts: Date.now(),
+      targetId: getTargetId(),
+      sessionId: getMirrorSessionId(),
+      pamMirrorUrl: new URLSearchParams(location.search).get("pamMirror"),
+      lastFen: partial.lastFen ?? null,
+      boardFen: readFenFromChessBoard(),
+      explorerFen: readFenFromExplorerElement(),
+      seq
+    };
+    let el = document.getElementById(PROBE_ID);
+    if (!el) {
+      el = document.createElement("script");
+      el.id = PROBE_ID;
+      el.type = "application/json";
+      el.setAttribute("aria-hidden", "true");
+      document.documentElement.append(el);
+    }
+    el.textContent = JSON.stringify(state);
+  }
   const BTN_ID = "pam-ct-open-lichess";
   const STATUS_ID = "pam-ct-mirror-status";
   let lastFen = null;
@@ -1592,6 +1618,7 @@
     debounceTimer = setTimeout(() => {
       mirrorLog("debug", "publish", { fen, prev, targetId });
       publishFromCt(fen, prev, targetId);
+      writeDomProbe({ lastFen: fen });
     }, 120);
   }
   function injectUi() {
@@ -1626,6 +1653,7 @@
       GM_openInTab(analysisBoardUrl(fen, pairId), { active: true });
       updateStatus(`Opened · mirror ${pairId.slice(0, 8)}…`);
       mirrorLog("info", "opened tab", { pairId, fen });
+      writeDomProbe({ lastFen: fen });
     });
     wrap.append(btn, status);
     panel.prepend(wrap);
@@ -1639,6 +1667,7 @@
       injectInto: "page",
       debug: isDebugEnabled()
     });
+    writeDomProbe({ lastFen: null });
     hookOpeningExplorerSetPosition(onFenChange);
     const uiInterval = setInterval(() => {
       injectUi();
@@ -1650,6 +1679,7 @@
       if (document.getElementById(BTN_ID)) clearInterval(uiInterval);
     }, 500);
     setTimeout(() => clearInterval(uiInterval), 12e4);
+    setInterval(() => writeDomProbe({ lastFen }), 2e3);
   }
   function waitForLichessAnalysis() {
     var _a, _b;
@@ -1727,6 +1757,7 @@
         targetId: getTargetId()
       });
     });
+    setInterval(() => writeDomProbe({}), 2e3);
     onMirrorPayload((payload) => {
       const apply = shouldApply(payload);
       mirrorLog("debug", "payload received", {
@@ -1741,6 +1772,7 @@
         fen: payload.fen,
         prevFen: payload.prevFen
       });
+      writeDomProbe({ lastFen: payload.fen, seq: payload.seq });
       void applyPosition(payload.fen, payload.prevFen);
     });
   }

@@ -6,6 +6,7 @@ import {
   singleMoveUci,
 } from './fen';
 import { mirrorLog } from './log';
+import { writeDomProbe } from './probe';
 import type { MirrorPayload } from './types';
 import {
   getMirrorSessionId,
@@ -98,6 +99,8 @@ export function startLichessMirror(): void {
     });
   });
 
+  setInterval(() => writeDomProbe({}), 2000);
+
   onMirrorPayload((payload: MirrorPayload) => {
     const apply = shouldApply(payload);
     mirrorLog('debug', 'payload received', {
@@ -112,6 +115,7 @@ export function startLichessMirror(): void {
       fen: payload.fen,
       prevFen: payload.prevFen,
     });
+    writeDomProbe({ lastFen: payload.fen, seq: payload.seq });
     void applyPosition(payload.fen, payload.prevFen);
   });
 }

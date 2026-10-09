@@ -23,6 +23,9 @@ Install `dist/chesstempo-lichess-mirror.user.js` in Tampermonkey (CT + Lichess m
 4. From this package:
 
 ```bash
+pnpm inspect:brave        # full snapshot for agents (CDP → DOM probe #pam-ct-mirror-probe)
+pnpm inspect:brave --watch
+
 pnpm verify:brave
 # or custom URLs:
 pnpm verify:brave 'https://www.chesstempo.com/opening-training/...' 'https://lichess.org/analysis'

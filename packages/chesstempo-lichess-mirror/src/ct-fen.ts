@@ -18,8 +18,6 @@ export function readFenFromChessBoard(): string | null {
 export function readFenFromExplorerElement(): string | null {
   const explorer = document.querySelector<ExplorerEl>('opening-explorer');
   if (!explorer) return null;
-  const fromData = explorer.getAttribute('data-pam-mirror-fen');
-  if (fromData) return fromData;
   if (explorer.fen) return explorer.fen;
   return null;
 }
@@ -38,9 +36,8 @@ export function fenDiagnostics(): Record<string, unknown> {
   const board = document.querySelector('chess-board');
   return {
     openingExplorer: !!explorer,
-    explorerHook: explorer?.dataset.pamMirrorPageHook === '1',
-    dataPamFen: explorer?.getAttribute('data-pam-mirror-fen'),
     chessBoard: !!board,
+    domProbe: document.getElementById('pam-ct-mirror-probe')?.textContent?.slice(0, 120),
     toFen: readFenFromChessBoard(),
     pageHookFlag: !!(window as Window & { __pamCtPageHook?: boolean })
       .__pamCtPageHook,

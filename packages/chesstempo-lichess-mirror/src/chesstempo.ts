@@ -2,6 +2,7 @@ import { fenDiagnostics, readCurrentCtFen } from './ct-fen';
 import { hookOpeningExplorerSetPosition } from './ct-page-hook';
 import { analysisBoardUrl } from './fen';
 import { isDebugEnabled, mirrorLog } from './log';
+import { writeDomProbe } from './probe';
 import {
   getTargetId,
   publishFromCt,
@@ -26,6 +27,7 @@ function onFenChange(fen: string): void {
   debounceTimer = setTimeout(() => {
     mirrorLog('debug', 'publish', { fen, prev, targetId });
     publishFromCt(fen, prev, targetId);
+    writeDomProbe({ lastFen: fen });
   }, 120);
 }
 
@@ -71,6 +73,7 @@ function injectUi(): void {
     GM_openInTab(analysisBoardUrl(fen, pairId), { active: true });
     updateStatus(`Opened · mirror ${pairId.slice(0, 8)}…`);
     mirrorLog('info', 'opened tab', { pairId, fen });
+    writeDomProbe({ lastFen: fen });
   });
 
   wrap.append(btn, status);
@@ -87,6 +90,7 @@ export function startChesstempoMirror(): void {
     injectInto: 'page',
     debug: isDebugEnabled(),
   });
+  writeDomProbe({ lastFen: null });
 
   hookOpeningExplorerSetPosition(onFenChange);
 
@@ -100,4 +104,6 @@ export function startChesstempoMirror(): void {
     if (document.getElementById(BTN_ID)) clearInterval(uiInterval);
   }, 500);
   setTimeout(() => clearInterval(uiInterval), 120_000);
+
+  setInterval(() => writeDomProbe({ lastFen }), 2000);
 }

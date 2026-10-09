@@ -5,21 +5,18 @@ type ExplorerEl = HTMLElement & {
   setPosition?: (fen: string) => void;
 };
 
+const hookedExplorers = new WeakSet<object>();
+
 export function hookOpeningExplorerSetPosition(
   onFen: (fen: string) => void,
 ): void {
   const hookOne = (explorer: ExplorerEl) => {
-    if (!explorer.setPosition || explorer.dataset.pamMirrorPageHook === '1') {
-      return;
-    }
-    explorer.dataset.pamMirrorPageHook = '1';
+    if (!explorer.setPosition || hookedExplorers.has(explorer)) return;
+    hookedExplorers.add(explorer);
     const orig = explorer.setPosition.bind(explorer);
     explorer.setPosition = (fen: string) => {
       orig(fen);
-      if (fen) {
-        explorer.setAttribute('data-pam-mirror-fen', fen);
-        onFen(fen);
-      }
+      if (fen) onFen(fen);
     };
     if (explorer.fen) onFen(explorer.fen);
     mirrorLog('debug', 'hooked opening-explorer.setPosition');
@@ -32,8 +29,15 @@ export function hookOpeningExplorerSetPosition(
 
   scan();
   customElements.whenDefined('opening-explorer').then(scan);
-  new MutationObserver(scan).observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-  });
+
+  let debounce: ReturnType<typeof setTimeout> | null = null;
+  new MutationObserver(() => {
+    if (debounce) return;
+    debounce = setTimeout(() => {
+      debounce = null;
+      const el = document.querySelector<ExplorerEl>('opening-explorer');
+      if (!el || hookedExplorers.has(el)) return;
+      scan();
+    }, 300);
+  }).observe(document.documentElement, { childList: true, subtree: true });
 }
