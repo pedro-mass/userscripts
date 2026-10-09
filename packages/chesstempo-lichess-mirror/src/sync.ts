@@ -1,5 +1,5 @@
 import { mirrorLog } from './log';
-import type { MirrorPayload } from './types';
+import type { BottomColor, MirrorPayload } from './types';
 
 const PAYLOAD_KEY = 'ctLichessMirror.payload';
 const TARGET_KEY = 'ctLichessMirror.targetId';
@@ -27,6 +27,7 @@ export function publishFromCt(
   fen: string,
   prevFen: string | null,
   targetId: string,
+  bottomColor?: BottomColor,
 ): void {
   const seq = (GM_getValue<number>(SEQ_KEY, 0) || 0) + 1;
   GM_setValue(SEQ_KEY, seq);
@@ -37,6 +38,7 @@ export function publishFromCt(
     fen,
     prevFen,
     targetId,
+    bottomColor,
     ts: Date.now(),
   };
   GM_setValue(PAYLOAD_KEY, payload);

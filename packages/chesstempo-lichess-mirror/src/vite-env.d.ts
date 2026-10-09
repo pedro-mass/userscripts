@@ -13,7 +13,11 @@ interface Window {
     analysis?: {
       playUci(uci: string, uciQueue?: string[]): void;
     };
-    chessground?: () => { getFen(): string };
+    chessground?: () => {
+      getFen(): string;
+      state: { orientation: 'white' | 'black' };
+      set(opts: { orientation: 'white' | 'black' }): void;
+    };
   };
 }
 

@@ -1,7 +1,15 @@
 import { mirrorLog } from './log';
+import type { BottomColor } from './types';
 
 type ChessBoardEl = HTMLElement & { toFen?: () => string };
 type ExplorerEl = HTMLElement & { fen?: string; setPosition?: (fen: string) => void };
+
+/** CT `chess-board`: flipped class means black at bottom. */
+export function readBottomColorFromBoard(): BottomColor {
+  const board = document.querySelector('chess-board');
+  if (board?.classList.contains('flipped')) return 'black';
+  return 'white';
+}
 
 export function readFenFromChessBoard(): string | null {
   const board = document.querySelector<ChessBoardEl>('chess-board');

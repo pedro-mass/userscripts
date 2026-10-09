@@ -38,6 +38,9 @@ function readProbe(page) {
       nodeFen,
       openBtn: !!document.getElementById('pam-ct-open-lichess'),
       pamMirror: new URLSearchParams(location.search).get('pamMirror'),
+      pamOrient: new URLSearchParams(location.search).get('pamOrient'),
+      cgOrientation: window.lichess?.chessground?.().state.orientation ?? null,
+      ctFlipped: !!document.querySelector('chess-board')?.classList?.contains('flipped'),
       hasPlayUci: !!window.lichess?.analysis?.playUci,
     };
   });

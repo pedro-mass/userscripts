@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChessTempo → Lichess mirror
 // @namespace    https://github.com/pedro-mass/userscripts/chesstempo-lichess-mirror
-// @version      0.1.3
+// @version      0.1.4
 // @author       pedro-mass
 // @description  Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).
 // @license      GPL-3.0-only
@@ -45,6 +45,11 @@
     const fn = level === "warn" ? console.warn : console.info;
     fn(NS, message, data ?? "");
     pushLog(entry);
+  }
+  function readBottomColorFromBoard() {
+    const board = document.querySelector("chess-board");
+    if (board == null ? void 0 : board.classList.contains("flipped")) return "black";
+    return "white";
   }
   function readFenFromChessBoard() {
     const board = document.querySelector("chess-board");
@@ -1493,9 +1498,17 @@
   function encodeFenForAnalysisUrl(fen) {
     return encodeURIComponent(fen.trim()).replace(/%20/g, "_").replace(/%2F/g, "/");
   }
-  function analysisBoardUrl(fen, pairId) {
+  function analysisBoardUrl(fen, pairId, bottomColor = "white") {
     const pathFen = encodeFenForAnalysisUrl(fen);
-    return `https://lichess.org/analysis/standard/${pathFen}?pamMirror=${encodeURIComponent(pairId)}`;
+    const q = new URLSearchParams({
+      pamMirror: pairId,
+      pamOrient: bottomColor
+    });
+    return `https://lichess.org/analysis/standard/${pathFen}?${q.toString()}`;
+  }
+  function parsePamOrientParam() {
+    const v = new URLSearchParams(location.search).get("pamOrient");
+    return v === "white" || v === "black" ? v : null;
   }
   function parsePamMirrorParam() {
     const q = new URLSearchParams(location.search).get("pamMirror");
@@ -1535,7 +1548,7 @@
   function setTargetId(id) {
     GM_setValue(TARGET_KEY, id);
   }
-  function publishFromCt(fen, prevFen, targetId) {
+  function publishFromCt(fen, prevFen, targetId, bottomColor) {
     const seq = (GM_getValue(SEQ_KEY, 0) || 0) + 1;
     GM_setValue(SEQ_KEY, seq);
     const payload = {
@@ -1545,6 +1558,7 @@
       fen,
       prevFen,
       targetId,
+      bottomColor,
       ts: Date.now()
     };
     GM_setValue(PAYLOAD_KEY, payload);
@@ -1617,7 +1631,7 @@
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       mirrorLog("debug", "publish", { fen, prev, targetId });
-      publishFromCt(fen, prev, targetId);
+      publishFromCt(fen, prev, targetId, readBottomColorFromBoard());
       writeDomProbe({ lastFen: fen });
     }, 120);
   }
@@ -1647,10 +1661,11 @@
         return;
       }
       const pairId = crypto.randomUUID();
+      const bottomColor = readBottomColorFromBoard();
       setTargetId(pairId);
       lastFen = fen;
-      publishFromCt(fen, null, pairId);
-      GM_openInTab(analysisBoardUrl(fen, pairId), { active: true });
+      publishFromCt(fen, null, pairId, bottomColor);
+      GM_openInTab(analysisBoardUrl(fen, pairId, bottomColor), { active: true });
       updateStatus(`Opened · mirror ${pairId.slice(0, 8)}…`);
       mirrorLog("info", "opened tab", { pairId, fen });
       writeDomProbe({ lastFen: fen });
@@ -1715,15 +1730,25 @@
     }
     return null;
   }
+  function applyBoardOrientation(bottomColor) {
+    var _a, _b;
+    const ground = (_b = (_a = window.lichess) == null ? void 0 : _a.chessground) == null ? void 0 : _b.call(_a);
+    if (!ground) return;
+    if (ground.state.orientation !== bottomColor) {
+      ground.set({ orientation: bottomColor });
+      mirrorLog("debug", "board orientation", { bottomColor });
+    }
+  }
   function navigateToFen(fen) {
     const pairId = getMirrorSessionId() || parsePamMirrorParam();
     const pathFen = encodeFenForAnalysisUrl(fen);
     const url = pairId ? analysisBoardUrl(fen, pairId) : `https://lichess.org/analysis/standard/${pathFen}`;
     if (location.href !== url) window.location.assign(url);
   }
-  async function applyPosition(fen, prevFen) {
+  async function applyPosition(fen, prevFen, bottomColor) {
     var _a, _b;
     await waitForLichessAnalysis();
+    if (bottomColor) applyBoardOrientation(bottomColor);
     const playUci = (_b = (_a = window.lichess) == null ? void 0 : _a.analysis) == null ? void 0 : _b.playUci;
     if (!playUci) {
       navigateToFen(fen);
@@ -1751,10 +1776,15 @@
     const fromUrl = parsePamMirrorParam();
     if (fromUrl) setMirrorSessionId(fromUrl);
     void waitForLichessAnalysis().then(() => {
+      var _a, _b;
+      const orient = parsePamOrientParam();
+      if (orient) applyBoardOrientation(orient);
       mirrorLog("info", "Lichess mirror listening", {
         pamMirror: fromUrl,
+        pamOrient: orient,
         session: getMirrorSessionId(),
-        targetId: getTargetId()
+        targetId: getTargetId(),
+        cgOrientation: (_b = (_a = window.lichess) == null ? void 0 : _a.chessground) == null ? void 0 : _b.call(_a).state.orientation
       });
     });
     setInterval(() => writeDomProbe({}), 2e3);
@@ -1773,7 +1803,7 @@
         prevFen: payload.prevFen
       });
       writeDomProbe({ lastFen: payload.fen, seq: payload.seq });
-      void applyPosition(payload.fen, payload.prevFen);
+      void applyPosition(payload.fen, payload.prevFen, payload.bottomColor);
     });
   }
   if (window.__pamCtMirrorLoaded) ;

@@ -1,4 +1,8 @@
-import { fenDiagnostics, readCurrentCtFen } from './ct-fen';
+import {
+  fenDiagnostics,
+  readBottomColorFromBoard,
+  readCurrentCtFen,
+} from './ct-fen';
 import { hookOpeningExplorerSetPosition } from './ct-page-hook';
 import { analysisBoardUrl } from './fen';
 import { isDebugEnabled, mirrorLog } from './log';
@@ -26,7 +30,7 @@ function onFenChange(fen: string): void {
   if (debounceTimer) clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
     mirrorLog('debug', 'publish', { fen, prev, targetId });
-    publishFromCt(fen, prev, targetId);
+    publishFromCt(fen, prev, targetId, readBottomColorFromBoard());
     writeDomProbe({ lastFen: fen });
   }, 120);
 }
@@ -67,10 +71,11 @@ function injectUi(): void {
       return;
     }
     const pairId = crypto.randomUUID();
+    const bottomColor = readBottomColorFromBoard();
     setTargetId(pairId);
     lastFen = fen;
-    publishFromCt(fen, null, pairId);
-    GM_openInTab(analysisBoardUrl(fen, pairId), { active: true });
+    publishFromCt(fen, null, pairId, bottomColor);
+    GM_openInTab(analysisBoardUrl(fen, pairId, bottomColor), { active: true });
     updateStatus(`Opened · mirror ${pairId.slice(0, 8)}…`);
     mirrorLog('info', 'opened tab', { pairId, fen });
     writeDomProbe({ lastFen: fen });

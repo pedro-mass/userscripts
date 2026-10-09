@@ -25,9 +25,22 @@ export function encodeFenForAnalysisUrl(fen: string): string {
     .replace(/%2F/g, '/');
 }
 
-export function analysisBoardUrl(fen: string, pairId: string): string {
+export function analysisBoardUrl(
+  fen: string,
+  pairId: string,
+  bottomColor: 'white' | 'black' = 'white',
+): string {
   const pathFen = encodeFenForAnalysisUrl(fen);
-  return `https://lichess.org/analysis/standard/${pathFen}?pamMirror=${encodeURIComponent(pairId)}`;
+  const q = new URLSearchParams({
+    pamMirror: pairId,
+    pamOrient: bottomColor,
+  });
+  return `https://lichess.org/analysis/standard/${pathFen}?${q.toString()}`;
+}
+
+export function parsePamOrientParam(): 'white' | 'black' | null {
+  const v = new URLSearchParams(location.search).get('pamOrient');
+  return v === 'white' || v === 'black' ? v : null;
 }
 
 export function parsePamMirrorParam(): string | null {

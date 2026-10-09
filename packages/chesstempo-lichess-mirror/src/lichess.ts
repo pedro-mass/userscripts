@@ -2,12 +2,13 @@ import {
   analysisBoardUrl,
   encodeFenForAnalysisUrl,
   parsePamMirrorParam,
+  parsePamOrientParam,
   positionKey,
   singleMoveUci,
 } from './fen';
 import { mirrorLog } from './log';
 import { writeDomProbe } from './probe';
-import type { MirrorPayload } from './types';
+import type { BottomColor, MirrorPayload } from './types';
 import {
   getMirrorSessionId,
   getTargetId,
@@ -48,6 +49,15 @@ function currentFen(): string | null {
   return null;
 }
 
+function applyBoardOrientation(bottomColor: BottomColor): void {
+  const ground = window.lichess?.chessground?.();
+  if (!ground) return;
+  if (ground.state.orientation !== bottomColor) {
+    ground.set({ orientation: bottomColor });
+    mirrorLog('debug', 'board orientation', { bottomColor });
+  }
+}
+
 function navigateToFen(fen: string): void {
   const pairId = getMirrorSessionId() || parsePamMirrorParam();
   const pathFen = encodeFenForAnalysisUrl(fen);
@@ -57,8 +67,13 @@ function navigateToFen(fen: string): void {
   if (location.href !== url) window.location.assign(url);
 }
 
-async function applyPosition(fen: string, prevFen: string | null): Promise<void> {
+async function applyPosition(
+  fen: string,
+  prevFen: string | null,
+  bottomColor?: BottomColor,
+): Promise<void> {
   await waitForLichessAnalysis();
+  if (bottomColor) applyBoardOrientation(bottomColor);
   const playUci = window.lichess?.analysis?.playUci;
   if (!playUci) {
     navigateToFen(fen);
@@ -92,10 +107,14 @@ export function startLichessMirror(): void {
   if (fromUrl) setMirrorSessionId(fromUrl);
 
   void waitForLichessAnalysis().then(() => {
+    const orient = parsePamOrientParam();
+    if (orient) applyBoardOrientation(orient);
     mirrorLog('info', 'Lichess mirror listening', {
       pamMirror: fromUrl,
+      pamOrient: orient,
       session: getMirrorSessionId(),
       targetId: getTargetId(),
+      cgOrientation: window.lichess?.chessground?.().state.orientation,
     });
   });
 
@@ -116,6 +135,6 @@ export function startLichessMirror(): void {
       prevFen: payload.prevFen,
     });
     writeDomProbe({ lastFen: payload.fen, seq: payload.seq });
-    void applyPosition(payload.fen, payload.prevFen);
+    void applyPosition(payload.fen, payload.prevFen, payload.bottomColor);
   });
 }
