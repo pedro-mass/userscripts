@@ -6,6 +6,8 @@
     "build": "pnpm --filter @userscripts/live-chart-filter build",
     "build:all": "pnpm -r build",
     "build:chesscom": "pnpm --filter @userscripts/chesscom-lichess-export build",
+    "build:ct-mirror": "pnpm --filter @userscripts/chesstempo-lichess-mirror build",
+    "dev:ct-mirror": "pnpm --filter @userscripts/chesstempo-lichess-mirror dev",
     "build:lichess-position-notes": "pnpm --filter @userscripts/lichess-position-notes build",
     "verify:lpn:brave": "node scripts/verify-lpn-brave-cdp.mjs",
     "capture:store:lpn": "node scripts/capture-lpn-store-images.mjs",

@@ -27,6 +27,25 @@ importers:
         specifier: ^6.0.0
         version: 6.0.1(postcss@8.5.28)(vite@6.4.3(tsx@4.23.15))
 
+  packages/chesstempo-lichess-mirror:
+    dependencies:
+      chessops:
+        specifier: ^0.14.2
+        version: 0.14.2
+    devDependencies:
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vite:
+        specifier: ^6.3.5
+        version: 6.4.3(tsx@4.23.15)
+      vite-plugin-monkey:
+        specifier: ^6.0.0
+        version: 6.0.1(postcss@8.5.28)(vite@6.4.3(tsx@4.23.15))
+
   packages/cursor-spend-pace:
     devDependencies:
       typescript:

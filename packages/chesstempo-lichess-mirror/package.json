@@ -1,0 +1,21 @@
+{
+  "name": "@userscripts/chesstempo-lichess-mirror",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "node --import tsx --test src/fen-diff.test.ts",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "chessops": "^0.14.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.2",
+    "vite": "^6.3.5",
+    "vite-plugin-monkey": "^6.0.0"
+  }
+}
