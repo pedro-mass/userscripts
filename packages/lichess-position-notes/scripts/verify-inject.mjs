@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Inject built lichess-position-notes bundle into a page context (Playwright).
- * Use for verify-in-browser when Tampermonkey is unavailable.
+ * Inject built bundle into a page context (Playwright).
+ * Use when Tampermonkey is unavailable.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,15 +9,12 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const injectPath = path.resolve(
-  __dirname,
-  '../packages/lichess-position-notes/dist/inject.js',
-);
+const injectPath = path.resolve(__dirname, '../dist/inject.js');
 const studyUrl =
   process.argv[2] ?? 'https://lichess.org/study/oDP5q102/XlPOdNrd';
 
 if (!fs.existsSync(injectPath)) {
-  console.error('Missing inject.js — run: pnpm --filter @userscripts/lichess-position-notes build');
+  console.error('Missing inject.js — run: pnpm build');
   process.exit(1);
 }
 

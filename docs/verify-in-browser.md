@@ -17,9 +17,7 @@ Skipping (1) wastes Pedro’s time on packaging bugs that are really DOM, timing
 When changing behavior in `packages/*` (especially DOM, storage, network, or mount logic):
 
 1. **Build** the package (`pnpm --filter <pkg> build`) so `dist/*.user.js` matches source.
-2. **Verify on the real URL** (`@match` target). For **lichess-position-notes**, prefer **Brave + Tampermonkey**; see [lichess-position-notes-verify.md](./lichess-position-notes-verify.md). When TM is unavailable, inject the built bundle:
-   - **Headless:** `node scripts/verify-lichess-lpn-inject.mjs '<chapter url>'` (after build; writes local `dist/inject.js`).
-   - **CDP chunk inject:** `node scripts/make-lpn-cdp-chunks.mjs` then `node scripts/inject-lpn-glass-cdp.mjs` (or manual `/tmp/lpn-chunk-expr-*.txt` + `/tmp/lpn-cdp-final.js` via CDP).
+2. **Verify on the real URL** (`@match` target). Per-package runbooks under `packages/<name>/docs/verify-in-browser.md` (e.g. **lichess-position-notes**, **chesstempo-lichess-mirror**). Prefer **Brave + Tampermonkey**; launch via PAM `scripts/launch-brave-remote-debug.sh`. When TM is unavailable, use each package’s `pnpm verify:inject` / CDP scripts.
    - Private studies: headless without `storageState` exits `2` with `study_not_found_guest`; use logged-in browser or TM.
    - Exercise the user-visible path (Comments tab, panel mount, import click if in scope).
 3. **Demo for Pedro** in the same slice: short summary, what URL you used, screenshot or snapshot of the working UI, and what to click to reproduce. “Reload Tampermonkey” is a **Pedro** step after agent proof, not a substitute for step 2.

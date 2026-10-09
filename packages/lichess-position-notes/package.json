@@ -5,8 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node ../../scripts/strip-userscript-header.mjs",
+    "build": "tsc && vite build && node scripts/strip-userscript-header.mjs",
     "test": "node --import tsx --test src/display-hits.test.ts src/slot-id.test.ts",
+    "verify:brave": "node scripts/verify-brave-cdp.mjs",
+    "verify:inject": "node scripts/verify-inject.mjs",
+    "verify:cdp-inject": "node scripts/inject-via-cdp-url.mjs",
+    "verify:cdp-chunks": "node scripts/make-cdp-chunks.mjs",
+    "verify:cdp-glass": "node scripts/inject-glass-cdp.mjs",
+    "capture:store": "node scripts/capture-store-images.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

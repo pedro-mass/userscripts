@@ -29,6 +29,6 @@ Build: `pnpm --filter @userscripts/lichess-position-notes build` → `dist/liche
 
 Test: `pnpm --filter @userscripts/lichess-position-notes test`.
 
-**Verify (recommended):** Brave + Tampermonkey on a real study chapter. Script matrix: [docs/lichess-position-notes-verify.md](../../docs/lichess-position-notes-verify.md) · `pnpm verify:lpn:brave`.
+**Verify (recommended):** [docs/verify-in-browser.md](./docs/verify-in-browser.md) · `pnpm verify:brave` (from this package).
 
 Research notes: PAM `.work/plans/lichess-position-notes/RESEARCH.md`.

@@ -141,3 +141,4 @@ packages/*/dist/inject.js
 
 # Greasy Fork publish auth (playwright storage state)
 .greasyfork/
+.build/

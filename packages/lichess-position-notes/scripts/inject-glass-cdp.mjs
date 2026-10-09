@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
  * Sequential CDP chunk inject for Cursor glass browser.
- * Reads WS URL from argv[1] or CDP_URL env (ws://...).
- * Usage: CDP_URL=ws://... node scripts/inject-lpn-glass-cdp.mjs
+ * Usage: CDP_URL=ws://... node scripts/inject-glass-cdp.mjs
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,7 +21,7 @@ const parts = fs
   .filter((f) => /^lpn-chunk-expr-\d+\.txt$/.test(f))
   .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));
 if (!parts.length) {
-  console.error('Run make-lpn-cdp-chunks.mjs after build');
+  console.error('Run make-cdp-chunks.mjs after build');
   process.exit(1);
 }
 

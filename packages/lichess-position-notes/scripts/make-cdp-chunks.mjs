@@ -6,10 +6,7 @@ import { fileURLToPath } from 'node:url';
 import zlib from 'node:zlib';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const injectPath = path.resolve(
-  __dirname,
-  '../packages/lichess-position-notes/dist/inject.js',
-);
+const injectPath = path.resolve(__dirname, '../dist/inject.js');
 const src = fs.readFileSync(injectPath);
 const gz = zlib.gzipSync(src).toString('base64');
 const partLen = 8000;

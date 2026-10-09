@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Inject LPN into a page via Playwright CDP connect.
- * Usage: CDP_URL=ws://... node scripts/inject-lpn-via-cdp-url.mjs [pageUrlSubstring]
+ * Usage: CDP_URL=ws://... node scripts/inject-via-cdp-url.mjs [pageUrlSubstring]
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,10 +16,7 @@ if (!cdp) {
   process.exit(1);
 }
 
-const injectPath = path.resolve(
-  __dirname,
-  '../packages/lichess-position-notes/dist/inject.js',
-);
+const injectPath = path.resolve(__dirname, '../dist/inject.js');
 const code = fs.readFileSync(injectPath, 'utf8');
 
 const browser = await chromium.connectOverCDP(cdp);

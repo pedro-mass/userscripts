@@ -5,8 +5,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = join(ROOT, 'packages/lichess-position-notes/store/images');
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const OUT = join(__dirname, '../store/images');
 const CDP = process.env.CDP_URL ?? 'http://127.0.0.1:9222';
 const studyUrl =
   process.argv[2] ?? 'https://lichess.org/study/oDP5q102/8Wjgh8Nh';
