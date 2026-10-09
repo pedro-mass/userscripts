@@ -1,3 +1,5 @@
+import { scriptVersion } from './version';
+
 const NS = '[ct-mirror]';
 const LOG_KEY = 'ctLichessMirror.recentLog';
 
@@ -24,10 +26,11 @@ export function mirrorLog(
   message: string,
   data?: Record<string, unknown>,
 ): void {
-  const entry = { t: Date.now(), level, message, ...data };
+  const version = scriptVersion();
+  const entry = { t: Date.now(), level, message, version, ...data };
   if (level === 'debug' && !isDebugEnabled()) return;
   const fn = level === 'warn' ? console.warn : console.info;
-  fn(NS, message, data ?? '');
+  fn(NS, `v${version}`, message, data ?? '');
   pushLog(entry);
 }
 

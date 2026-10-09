@@ -5,11 +5,11 @@ import {
 } from './ct-fen';
 import { startChessBoardPoll } from './ct-board-poll';
 import { hookOpeningExplorerSetPosition } from './ct-page-hook';
-import { pieceSideKey } from './fen';
-import { analysisBoardUrl } from './fen';
+import { analysisBoardUrl, pieceSideKey } from './fen';
 import { isDebugEnabled, mirrorLog } from './log';
 import {
   PROBE_WRAP_ID,
+  ensureProbeHost,
   removeLegacyProbeNodes,
   writeDomProbe,
 } from './probe';
@@ -44,16 +44,15 @@ function onFenChange(fen: string): void {
 
 function injectUi(): void {
   if (document.getElementById(BTN_ID)) return;
+  if (!document.body) return;
 
-  const panel =
-    document.querySelector('.ct-ot-right-panel') ||
-    document.querySelector('opening-training-ui');
-  if (!panel) return;
+  ensureProbeHost();
+  const wrap = document.getElementById(PROBE_WRAP_ID);
+  if (!wrap) return;
 
-  const wrap = document.createElement('div');
-  wrap.id = PROBE_WRAP_ID;
-  wrap.style.cssText =
-    'display:flex;gap:8px;align-items:center;padding:6px 8px;flex-wrap:wrap;';
+  const row = document.createElement('div');
+  row.style.cssText =
+    'display:flex;gap:8px;align-items:center;flex-wrap:wrap;pointer-events:auto;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.96);box-shadow:0 2px 10px rgba(0,0,0,0.15);';
 
   const btn = document.createElement('button');
   btn.id = BTN_ID;
@@ -66,7 +65,7 @@ function injectUi(): void {
 
   const status = document.createElement('span');
   status.id = STATUS_ID;
-  status.style.cssText = 'font-size:12px;color:#666;';
+  status.style.cssText = 'font-size:12px;color:#333;';
   updateStatus(isDebugEnabled() ? 'debug on (console)' : '');
 
   btn.addEventListener('click', () => {
@@ -89,8 +88,8 @@ function injectUi(): void {
     writeDomProbe({ lastFen: fen });
   });
 
-  wrap.append(btn, status);
-  panel.append(wrap);
+  row.append(btn, status);
+  wrap.insertBefore(row, wrap.firstChild);
   writeDomProbe({ lastFen });
 }
 
@@ -108,13 +107,20 @@ export function startChesstempoMirror(): void {
   hookOpeningExplorerSetPosition(onFenChange);
   startChessBoardPoll(onFenChange);
 
-  const uiInterval = setInterval(() => {
+  const mount = () => {
     injectUi();
     const fen = readCurrentCtFen(lastFen);
     if (fen && !lastFen) {
       lastFen = fen;
       mirrorLog('debug', 'seed FEN from board', { fen });
     }
+  };
+
+  if (document.body) mount();
+  else document.addEventListener('DOMContentLoaded', mount, { once: true });
+
+  const uiInterval = setInterval(() => {
+    mount();
     if (document.getElementById(BTN_ID)) clearInterval(uiInterval);
   }, 500);
   setTimeout(() => clearInterval(uiInterval), 120_000);

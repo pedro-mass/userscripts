@@ -15,9 +15,20 @@ const LAUNCH_HINT =
 
 function readProbe(page) {
   return page.evaluate(() => {
-    const raw =
-      document.getElementById('pam-ct-mirror-wrap')?.getAttribute('data-pam-probe') ??
-      document.getElementById('pam-ct-mirror-probe')?.textContent;
+    const readProbeJson = () => {
+      const wrap = document.getElementById('pam-ct-mirror-wrap');
+      if (wrap) {
+        for (const n of wrap.childNodes) {
+          if (n.nodeType === 8 && n.data.startsWith('pam-ct-mirror-probe:')) {
+            return n.data.slice('pam-ct-mirror-probe:'.length);
+          }
+        }
+        const legacy = wrap.getAttribute('data-pam-probe');
+        if (legacy) return legacy;
+      }
+      return document.getElementById('pam-ct-mirror-probe')?.textContent ?? null;
+    };
+    const raw = readProbeJson();
     let probe = null;
     if (raw) {
       try {

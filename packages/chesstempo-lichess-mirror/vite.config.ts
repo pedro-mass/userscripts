@@ -1,16 +1,24 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import monkey from 'vite-plugin-monkey';
+
+const pkg = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+) as { version: string };
 
 const RAW_BASE =
   'https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesstempo-lichess-mirror/dist';
 
 export default defineConfig({
+  define: {
+    __CT_MIRROR_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     monkey({
       entry: 'src/main.ts',
       userscript: {
         name: 'ChessTempo → Lichess mirror',
-        version: '0.1.6',
+        version: pkg.version,
         author: 'pedro-mass',
         description:
           'Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).',
@@ -30,6 +38,7 @@ export default defineConfig({
         'run-at': 'document-idle',
         'inject-into': 'page',
         grant: [
+          'GM_info',
           'GM_setValue',
           'GM_getValue',
           'GM_addValueChangeListener',

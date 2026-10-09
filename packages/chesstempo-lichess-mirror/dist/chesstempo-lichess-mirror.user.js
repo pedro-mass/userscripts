@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChessTempo → Lichess mirror
 // @namespace    https://github.com/pedro-mass/userscripts/chesstempo-lichess-mirror
-// @version      0.1.6
+// @version      0.1.7
 // @author       pedro-mass
 // @description  Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).
 // @license      GPL-3.0-only
@@ -15,6 +15,7 @@
 // @match        https://lichess.org/analysis*
 // @grant        GM_addValueChangeListener
 // @grant        GM_getValue
+// @grant        GM_info
 // @grant        GM_openInTab
 // @grant        GM_setValue
 // @inject-into  page
@@ -24,6 +25,21 @@
 (function () {
   'use strict';
 
+  function scriptVersion() {
+    var _a;
+    try {
+      if ("0.1.7") {
+        return "0.1.7";
+      }
+    } catch {
+    }
+    try {
+      const v = (_a = GM_info == null ? void 0 : GM_info.script) == null ? void 0 : _a.version;
+      if (v) return String(v);
+    } catch {
+    }
+    return "unknown";
+  }
   const NS = "[ct-mirror]";
   const LOG_KEY = "ctLichessMirror.recentLog";
   function isDebugEnabled() {
@@ -40,10 +56,11 @@
     GM_setValue(LOG_KEY, next);
   }
   function mirrorLog(level, message, data) {
-    const entry = { t: Date.now(), level, message, ...data };
+    const version = scriptVersion();
+    const entry = { t: Date.now(), level, message, version, ...data };
     if (level === "debug" && !isDebugEnabled()) return;
     const fn = level === "warn" ? console.warn : console.info;
-    fn(NS, message, data ?? "");
+    fn(NS, `v${version}`, message, data ?? "");
     pushLog(entry);
   }
   function readBottomColorFromBoard() {
@@ -76,13 +93,24 @@
     return fromBoard;
   }
   function fenDiagnostics() {
-    var _a, _b;
     const explorer = document.querySelector("opening-explorer");
     const board = document.querySelector("chess-board");
     return {
       openingExplorer: !!explorer,
       chessBoard: !!board,
-      domProbe: (_b = (_a = document.getElementById("pam-ct-mirror-wrap")) == null ? void 0 : _a.getAttribute("data-pam-probe")) == null ? void 0 : _b.slice(0, 120),
+      domProbe: (() => {
+        var _a;
+        const wrap = document.getElementById("pam-ct-mirror-wrap");
+        if (!wrap) return void 0;
+        for (const n2 of Array.from(wrap.childNodes)) {
+          if (n2.nodeType !== Node.COMMENT_NODE) continue;
+          const c = n2;
+          if (c.data.startsWith("pam-ct-mirror-probe:")) {
+            return c.data.slice("pam-ct-mirror-probe:".length).slice(0, 120);
+          }
+        }
+        return (_a = wrap.getAttribute("data-pam-probe")) == null ? void 0 : _a.slice(0, 120);
+      })(),
       toFen: readFenFromChessBoard(),
       pageHookFlag: !!window.__pamCtPageHook,
       injectFlag: document.documentElement.dataset.pamCtPageHookInjected
@@ -1604,7 +1632,6 @@
         orig(fen);
         if (fen) onFen(fen);
       };
-      if (explorer.fen) onFen(explorer.fen);
       mirrorLog("debug", "hooked opening-explorer.setPosition");
       return true;
     };
@@ -1620,17 +1647,27 @@
     }, 500);
   }
   const PROBE_WRAP_ID = "pam-ct-mirror-wrap";
-  const PROBE_ATTR = "data-pam-probe";
+  const PROBE_COMMENT_PREFIX = "pam-ct-mirror-probe:";
   let lastProbeJson = "";
   function removeLegacyProbeNodes() {
     var _a;
     (_a = document.getElementById("pam-ct-mirror-probe")) == null ? void 0 : _a.remove();
   }
+  function probeComment(anchor) {
+    for (const n2 of Array.from(anchor.childNodes)) {
+      if (n2.nodeType !== Node.COMMENT_NODE) continue;
+      const c = n2;
+      if (c.data.startsWith(PROBE_COMMENT_PREFIX)) return c;
+    }
+    return null;
+  }
   function ensureProbeHost() {
     if (document.getElementById(PROBE_WRAP_ID)) return;
     const el = document.createElement("div");
     el.id = PROBE_WRAP_ID;
-    el.style.cssText = "position:fixed;width:0;height:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;";
+    el.style.cssText = "position:fixed;bottom:12px;right:12px;z-index:2147483646;display:flex;flex-direction:column;gap:6px;align-items:flex-end;max-width:min(360px,90vw);pointer-events:none;";
+    const comment = document.createComment(`${PROBE_COMMENT_PREFIX}{}`);
+    el.append(comment);
     document.body.append(el);
   }
   function writeDomProbe(partial) {
@@ -1639,6 +1676,7 @@
     const seq = partial.seq ?? GM_getValue("ctLichessMirror.seq", null) ?? null;
     const state = {
       v: 1,
+      scriptVersion: scriptVersion(),
       host: location.hostname,
       path: location.pathname + location.search,
       ts: Date.now(),
@@ -1655,7 +1693,13 @@
     const json = JSON.stringify(state);
     if (json === lastProbeJson) return;
     lastProbeJson = json;
-    anchor.setAttribute(PROBE_ATTR, json);
+    let comment = probeComment(anchor);
+    if (!comment) {
+      comment = document.createComment(`${PROBE_COMMENT_PREFIX}${json}`);
+      anchor.append(comment);
+    } else {
+      comment.data = `${PROBE_COMMENT_PREFIX}${json}`;
+    }
   }
   const BTN_ID = "pam-ct-open-lichess";
   const STATUS_ID = "pam-ct-mirror-status";
@@ -1677,11 +1721,12 @@
   }
   function injectUi() {
     if (document.getElementById(BTN_ID)) return;
-    const panel = document.querySelector(".ct-ot-right-panel") || document.querySelector("opening-training-ui");
-    if (!panel) return;
-    const wrap = document.createElement("div");
-    wrap.id = PROBE_WRAP_ID;
-    wrap.style.cssText = "display:flex;gap:8px;align-items:center;padding:6px 8px;flex-wrap:wrap;";
+    if (!document.body) return;
+    ensureProbeHost();
+    const wrap = document.getElementById(PROBE_WRAP_ID);
+    if (!wrap) return;
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap;pointer-events:auto;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.96);box-shadow:0 2px 10px rgba(0,0,0,0.15);";
     const btn = document.createElement("button");
     btn.id = BTN_ID;
     btn.type = "button";
@@ -1690,7 +1735,7 @@
     btn.style.cssText = "cursor:pointer;padding:6px 12px;border-radius:4px;border:1px solid #888;background:#2d5016;color:#fff;font-size:13px;";
     const status = document.createElement("span");
     status.id = STATUS_ID;
-    status.style.cssText = "font-size:12px;color:#666;";
+    status.style.cssText = "font-size:12px;color:#333;";
     updateStatus(isDebugEnabled() ? "debug on (console)" : "");
     btn.addEventListener("click", () => {
       const fen = readCurrentCtFen(lastFen);
@@ -1711,8 +1756,8 @@
       mirrorLog("info", "opened tab", { pairId, fen });
       writeDomProbe({ lastFen: fen });
     });
-    wrap.append(btn, status);
-    panel.append(wrap);
+    row.append(btn, status);
+    wrap.insertBefore(row, wrap.firstChild);
     writeDomProbe({ lastFen });
   }
   function updateStatus(text) {
@@ -1727,13 +1772,18 @@
     });
     hookOpeningExplorerSetPosition(onFenChange);
     startChessBoardPoll(onFenChange);
-    const uiInterval = setInterval(() => {
+    const mount = () => {
       injectUi();
       const fen = readCurrentCtFen(lastFen);
       if (fen && !lastFen) {
         lastFen = fen;
         mirrorLog("debug", "seed FEN from board", { fen });
       }
+    };
+    if (document.body) mount();
+    else document.addEventListener("DOMContentLoaded", mount, { once: true });
+    const uiInterval = setInterval(() => {
+      mount();
       if (document.getElementById(BTN_ID)) clearInterval(uiInterval);
     }, 500);
     setTimeout(() => clearInterval(uiInterval), 12e4);

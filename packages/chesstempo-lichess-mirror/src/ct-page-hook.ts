@@ -18,7 +18,6 @@ export function hookOpeningExplorerSetPosition(
       orig(fen);
       if (fen) onFen(fen);
     };
-    if (explorer.fen) onFen(explorer.fen);
     mirrorLog('debug', 'hooked opening-explorer.setPosition');
     return true;
   };

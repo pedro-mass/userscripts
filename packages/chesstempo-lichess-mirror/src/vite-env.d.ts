@@ -1,5 +1,13 @@
 /// <reference types="vite/client" />
 
+declare const __CT_MIRROR_VERSION__: string;
+
+interface GMInfoScript {
+  version?: string;
+  name?: string;
+}
+declare const GM_info: { script: GMInfoScript };
+
 interface Site {
   load: Promise<void>;
   analysis?: {

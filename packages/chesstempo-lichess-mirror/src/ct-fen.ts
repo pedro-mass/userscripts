@@ -45,10 +45,18 @@ export function fenDiagnostics(): Record<string, unknown> {
   return {
     openingExplorer: !!explorer,
     chessBoard: !!board,
-    domProbe: document
-      .getElementById('pam-ct-mirror-wrap')
-      ?.getAttribute('data-pam-probe')
-      ?.slice(0, 120),
+    domProbe: (() => {
+      const wrap = document.getElementById('pam-ct-mirror-wrap');
+      if (!wrap) return undefined;
+      for (const n of Array.from(wrap.childNodes)) {
+        if (n.nodeType !== Node.COMMENT_NODE) continue;
+        const c = n as Comment;
+        if (c.data.startsWith('pam-ct-mirror-probe:')) {
+          return c.data.slice('pam-ct-mirror-probe:'.length).slice(0, 120);
+        }
+      }
+      return wrap.getAttribute('data-pam-probe')?.slice(0, 120);
+    })(),
     toFen: readFenFromChessBoard(),
     pageHookFlag: !!(window as Window & { __pamCtPageHook?: boolean })
       .__pamCtPageHook,
