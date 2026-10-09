@@ -5,7 +5,44 @@ import type { BottomColor, MirrorPayload } from './types';
 const PAYLOAD_KEY = 'ctLichessMirror.payload';
 const TARGET_KEY = 'ctLichessMirror.targetId';
 const SEQ_KEY = 'ctLichessMirror.seq';
+const APPLIED_SEQ_KEY = 'ctLichessMirror.lastAppliedSeq';
 const SESSION_MIRROR = 'pamMirrorId';
+
+function parsePayload(raw: unknown): MirrorPayload | null {
+  if (raw == null) return null;
+  let obj: Record<string, unknown>;
+  if (typeof raw === 'string') {
+    try {
+      obj = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  } else if (typeof raw === 'object') {
+    obj = raw as Record<string, unknown>;
+  } else {
+    return null;
+  }
+  if (Number(obj.v) !== 1 || obj.from !== 'ct') return null;
+  const seq = Number(obj.seq);
+  const fen = obj.fen;
+  const targetId = obj.targetId;
+  if (!Number.isFinite(seq) || typeof fen !== 'string' || typeof targetId !== 'string') {
+    return null;
+  }
+  const prevFen = obj.prevFen;
+  const bottomColor = obj.bottomColor;
+  return {
+    v: 1,
+    seq,
+    from: 'ct',
+    fen,
+    prevFen: typeof prevFen === 'string' ? prevFen : prevFen == null ? null : null,
+    targetId,
+    bottomColor:
+      bottomColor === 'white' || bottomColor === 'black' ? bottomColor : undefined,
+    ts: Number(obj.ts) || Date.now(),
+  };
+}
 
 export function getMirrorSessionId(): string | null {
   return sessionStorage.getItem(SESSION_MIRROR);
@@ -38,9 +75,7 @@ export function setTargetId(id: string): void {
 }
 
 export function getLatestPayload(): MirrorPayload | null {
-  const v = GM_getValue<MirrorPayload | undefined>(PAYLOAD_KEY, undefined);
-  if (!v || typeof v !== 'object' || v.v !== 1 || v.from !== 'ct') return null;
-  return v;
+  return parsePayload(GM_getValue(PAYLOAD_KEY, undefined));
 }
 
 export function getPublishedSeq(): number {
@@ -69,18 +104,36 @@ export function publishFromCt(
   mirrorLog('debug', 'GM publish', { seq, targetId, fen });
 }
 
+function appliedSeqStorageKey(targetId: string): string {
+  return `${APPLIED_SEQ_KEY}.${targetId}`;
+}
+
+export function loadLastAppliedSeqForTarget(targetId: string | null): number {
+  if (!targetId) return 0;
+  const n = Number(GM_getValue(appliedSeqStorageKey(targetId), 0));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+export function persistLastAppliedSeq(targetId: string, seq: number): void {
+  GM_setValue(appliedSeqStorageKey(targetId), seq);
+}
+
 export function onMirrorPayload(
   handler: (payload: MirrorPayload) => void,
 ): void {
   GM_addValueChangeListener(PAYLOAD_KEY, (_key, _old, newValue) => {
-    if (!newValue || typeof newValue !== 'object') return;
-    const p = newValue as MirrorPayload;
-    if (p.v !== 1 || p.from !== 'ct') return;
+    const p = parsePayload(newValue);
+    if (!p) return;
     handler(p);
   });
 }
 
 let lastAppliedSeq = 0;
+
+export function initLastAppliedSeqFromStorage(): void {
+  const targetId = getPairingTargetId();
+  lastAppliedSeq = loadLastAppliedSeqForTarget(targetId);
+}
 
 export function getLastAppliedSeq(): number {
   return lastAppliedSeq;
@@ -110,6 +163,32 @@ export function shouldApply(payload: MirrorPayload): boolean {
   return true;
 }
 
-export function markPayloadApplied(seq: number): void {
+export function markPayloadApplied(seq: number, targetId?: string): void {
+  const tid = targetId ?? getPairingTargetId();
   if (seq > lastAppliedSeq) lastAppliedSeq = seq;
+  if (tid && seq > 0) persistLastAppliedSeq(tid, seq);
+}
+
+/** For CDP probe / debugging drain decisions. */
+export function drainDiagnostics(): {
+  hasPayload: boolean;
+  payloadSeq: number | null;
+  payloadFen: string | null;
+  payloadTarget: string | null;
+  pairingTarget: string | null;
+  matches: boolean;
+  wouldApply: boolean;
+} {
+  const p = getLatestPayload();
+  const pairingTarget = getPairingTargetId();
+  const matches = !!(p && payloadMatchesSession(p));
+  return {
+    hasPayload: !!p,
+    payloadSeq: p?.seq ?? null,
+    payloadFen: p?.fen ?? null,
+    payloadTarget: p?.targetId ?? null,
+    pairingTarget,
+    matches,
+    wouldApply: !!(p && shouldApply(p)),
+  };
 }

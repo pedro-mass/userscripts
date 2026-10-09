@@ -44,3 +44,7 @@ declare const GM_openInTab: (
   url: string,
   options?: { active?: boolean; insert?: boolean; setParent?: boolean },
 ) => void;
+declare const GM_addElement: (
+  tagName: string,
+  attributes: Record<string, string>,
+) => HTMLElement;

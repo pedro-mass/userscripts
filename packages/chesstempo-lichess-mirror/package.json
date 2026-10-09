@@ -1,12 +1,12 @@
 {
   "name": "@userscripts/chesstempo-lichess-mirror",
   "private": true,
-  "version": "0.1.8",
+  "version": "0.1.12",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && node scripts/strip-userscript-header.mjs",
-    "test": "node --import tsx --test src/fen-diff.test.ts",
+    "test": "node --import tsx --test src/fen-diff.test.ts src/sync-parse.test.ts",
     "verify:brave": "node scripts/verify-brave-cdp.mjs",
     "inspect:brave": "node scripts/inspect-brave-cdp.mjs",
     "tm:serve": "python3 -m http.server 8765 --directory dist",

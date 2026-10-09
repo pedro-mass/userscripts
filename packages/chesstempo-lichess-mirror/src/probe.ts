@@ -1,5 +1,6 @@
 import { readFenFromChessBoard, readFenFromExplorerElement } from './ct-fen';
 import {
+  drainDiagnostics,
   getLastAppliedSeq,
   getMirrorSessionId,
   getPairingTargetId,
@@ -26,6 +27,7 @@ export type MirrorProbeState = {
   seq: number | null;
   publishedSeq: number | null;
   lastAppliedSeq: number | null;
+  drain?: ReturnType<typeof drainDiagnostics>;
 };
 
 let lastProbeJson = '';
@@ -82,6 +84,12 @@ export function writeDomProbe(partial: {
     seq,
     publishedSeq: getPublishedSeq(),
     lastAppliedSeq: getLastAppliedSeq(),
+    ...(location.hostname === 'lichess.org'
+      ? {
+          drain: drainDiagnostics(),
+          bridgeReady: window.__pamCtAnalysisReady ?? false,
+        }
+      : {}),
   };
 
   const json = JSON.stringify(state);

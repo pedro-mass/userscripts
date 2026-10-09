@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChessTempo → Lichess mirror
 // @namespace    https://github.com/pedro-mass/userscripts/chesstempo-lichess-mirror
-// @version      0.1.8
+// @version      0.1.12
 // @author       pedro-mass
 // @description  Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).
 // @license      GPL-3.0-only
@@ -13,6 +13,7 @@
 // @match        https://chesstempo.com/opening-training/*
 // @match        https://www.chesstempo.com/opening-training/*
 // @match        https://lichess.org/analysis*
+// @grant        GM_addElement
 // @grant        GM_addValueChangeListener
 // @grant        GM_getValue
 // @grant        GM_info
@@ -28,8 +29,8 @@
   function scriptVersion() {
     var _a;
     try {
-      if ("0.1.8") {
-        return "0.1.8";
+      if ("0.1.12") {
+        return "0.1.12";
       }
     } catch {
     }
@@ -1536,7 +1537,42 @@
   const PAYLOAD_KEY = "ctLichessMirror.payload";
   const TARGET_KEY = "ctLichessMirror.targetId";
   const SEQ_KEY = "ctLichessMirror.seq";
+  const APPLIED_SEQ_KEY = "ctLichessMirror.lastAppliedSeq";
   const SESSION_MIRROR = "pamMirrorId";
+  function parsePayload(raw) {
+    if (raw == null) return null;
+    let obj;
+    if (typeof raw === "string") {
+      try {
+        obj = JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    } else if (typeof raw === "object") {
+      obj = raw;
+    } else {
+      return null;
+    }
+    if (Number(obj.v) !== 1 || obj.from !== "ct") return null;
+    const seq = Number(obj.seq);
+    const fen = obj.fen;
+    const targetId = obj.targetId;
+    if (!Number.isFinite(seq) || typeof fen !== "string" || typeof targetId !== "string") {
+      return null;
+    }
+    const prevFen = obj.prevFen;
+    const bottomColor = obj.bottomColor;
+    return {
+      v: 1,
+      seq,
+      from: "ct",
+      fen,
+      prevFen: typeof prevFen === "string" ? prevFen : prevFen == null ? null : null,
+      targetId,
+      bottomColor: bottomColor === "white" || bottomColor === "black" ? bottomColor : void 0,
+      ts: Number(obj.ts) || Date.now()
+    };
+  }
   function getMirrorSessionId() {
     return sessionStorage.getItem(SESSION_MIRROR);
   }
@@ -1557,9 +1593,7 @@
     GM_setValue(TARGET_KEY, id);
   }
   function getLatestPayload() {
-    const v = GM_getValue(PAYLOAD_KEY, void 0);
-    if (!v || typeof v !== "object" || v.v !== 1 || v.from !== "ct") return null;
-    return v;
+    return parsePayload(GM_getValue(PAYLOAD_KEY, void 0));
   }
   function getPublishedSeq() {
     return GM_getValue(SEQ_KEY, 0) || 0;
@@ -1580,15 +1614,29 @@
     GM_setValue(PAYLOAD_KEY, payload);
     mirrorLog("debug", "GM publish", { seq, targetId, fen });
   }
+  function appliedSeqStorageKey(targetId) {
+    return `${APPLIED_SEQ_KEY}.${targetId}`;
+  }
+  function loadLastAppliedSeqForTarget(targetId) {
+    if (!targetId) return 0;
+    const n2 = Number(GM_getValue(appliedSeqStorageKey(targetId), 0));
+    return Number.isFinite(n2) && n2 > 0 ? n2 : 0;
+  }
+  function persistLastAppliedSeq(targetId, seq) {
+    GM_setValue(appliedSeqStorageKey(targetId), seq);
+  }
   function onMirrorPayload(handler) {
     GM_addValueChangeListener(PAYLOAD_KEY, (_key, _old, newValue) => {
-      if (!newValue || typeof newValue !== "object") return;
-      const p = newValue;
-      if (p.v !== 1 || p.from !== "ct") return;
+      const p = parsePayload(newValue);
+      if (!p) return;
       handler(p);
     });
   }
   let lastAppliedSeq = 0;
+  function initLastAppliedSeqFromStorage() {
+    const targetId = getPairingTargetId();
+    lastAppliedSeq = loadLastAppliedSeqForTarget(targetId);
+  }
   function getLastAppliedSeq() {
     return lastAppliedSeq;
   }
@@ -1613,8 +1661,24 @@
     }
     return true;
   }
-  function markPayloadApplied(seq) {
+  function markPayloadApplied(seq, targetId) {
+    const tid = targetId ?? getPairingTargetId();
     if (seq > lastAppliedSeq) lastAppliedSeq = seq;
+    if (tid && seq > 0) persistLastAppliedSeq(tid, seq);
+  }
+  function drainDiagnostics() {
+    const p = getLatestPayload();
+    const pairingTarget = getPairingTargetId();
+    const matches = !!(p && payloadMatchesSession(p));
+    return {
+      hasPayload: !!p,
+      payloadSeq: (p == null ? void 0 : p.seq) ?? null,
+      payloadFen: (p == null ? void 0 : p.fen) ?? null,
+      payloadTarget: (p == null ? void 0 : p.targetId) ?? null,
+      pairingTarget,
+      matches,
+      wouldApply: !!(p && shouldApply(p))
+    };
   }
   function startChessBoardPoll(onFen) {
     let lastSeen = null;
@@ -1694,7 +1758,11 @@
       explorerFen: readFenFromExplorerElement(),
       seq,
       publishedSeq: getPublishedSeq(),
-      lastAppliedSeq: getLastAppliedSeq()
+      lastAppliedSeq: getLastAppliedSeq(),
+      ...location.hostname === "lichess.org" ? {
+        drain: drainDiagnostics(),
+        bridgeReady: window.__pamCtAnalysisReady ?? false
+      } : {}
     };
     const json = JSON.stringify(state);
     if (json === lastProbeJson) return;
@@ -1795,96 +1863,75 @@
     setTimeout(() => clearInterval(uiInterval), 12e4);
     setInterval(() => writeDomProbe({ lastFen }), 2e3);
   }
-  function waitForLichessAnalysis() {
-    var _a, _b;
-    if ((_b = (_a = window.lichess) == null ? void 0 : _a.analysis) == null ? void 0 : _b.playUci) return Promise.resolve();
-    return new Promise((resolve) => {
-      var _a2, _b2;
-      const start = Date.now();
-      const tick = () => {
-        var _a3, _b3;
-        if ((_b3 = (_a3 = window.lichess) == null ? void 0 : _a3.analysis) == null ? void 0 : _b3.playUci) {
-          resolve();
-          return;
-        }
-        if (Date.now() - start > 6e4) {
-          mirrorLog("warn", "Lichess analysis API not found");
-          resolve();
-          return;
-        }
-        requestAnimationFrame(tick);
-      };
-      (_b2 = (_a2 = window.site) == null ? void 0 : _a2.load) == null ? void 0 : _b2.then(() => requestAnimationFrame(tick));
-      requestAnimationFrame(tick);
+  const bridgeSource = "/* Runs in the page main world (not TM isolated world). */\n(() => {\n  if (window.__pamCtLichessBridge) return;\n  const pieceSideKey = (fen) => {\n    const p = fen.trim().split(/\\s+/);\n    return `${p[0]} ${p[1]}`;\n  };\n  const currentFen = () => window.site?.analysis?.node?.fen ?? null;\n  const waitPlayUci = () =>\n    new Promise((resolve) => {\n      if (window.lichess?.analysis?.playUci) {\n        resolve(window.lichess.analysis.playUci);\n        return;\n      }\n      const deadline = Date.now() + 60_000;\n      const tick = () => {\n        if (window.lichess?.analysis?.playUci) {\n          resolve(window.lichess.analysis.playUci);\n          return;\n        }\n        if (Date.now() > deadline) {\n          resolve(null);\n          return;\n        }\n        setTimeout(tick, 50);\n      };\n      tick();\n    });\n  const applyOrient = (bottomColor) => {\n    const g = window.lichess?.chessground?.();\n    if (g && bottomColor && g.state.orientation !== bottomColor) {\n      g.set({ orientation: bottomColor });\n    }\n  };\n  document.addEventListener('pam-ct-apply-position', async (ev) => {\n    const d = ev.detail || {};\n    const { id, fen, uci, navigateUrl, bottomColor } = d;\n    let result = 'failed';\n    try {\n      const playUci = await waitPlayUci();\n      applyOrient(bottomColor);\n      const here = currentFen();\n      if (here && pieceSideKey(here) === pieceSideKey(fen)) {\n        result = 'at_target';\n      } else if (playUci && uci) {\n        playUci(uci);\n        for (let i = 0; i < 40; i++) {\n          await new Promise((r) => setTimeout(r, 40));\n          const after = currentFen();\n          if (after && pieceSideKey(after) === pieceSideKey(fen)) {\n            result = 'played';\n            break;\n          }\n        }\n      }\n      if (result === 'failed' && navigateUrl && location.href !== navigateUrl) {\n        result = 'navigating';\n        location.assign(navigateUrl);\n      } else if (result === 'failed' && here && pieceSideKey(here) === pieceSideKey(fen)) {\n        result = 'at_target';\n      }\n    } catch (e) {\n      result = 'failed';\n    }\n    document.dispatchEvent(\n      new CustomEvent('pam-ct-apply-result', { detail: { id, result } }),\n    );\n  });\n  window.__pamCtLichessBridge = true;\n  document.dispatchEvent(new CustomEvent('pam-ct-bridge-ready'));\n})();\n";
+  function installPageBridge() {
+    if (document.getElementById("pam-ct-page-bridge-installed")) return;
+    const marker = document.createElement("div");
+    marker.id = "pam-ct-page-bridge-installed";
+    marker.hidden = true;
+    document.documentElement.append(marker);
+    GM_addElement("script", {
+      id: "pam-ct-page-bridge",
+      textContent: bridgeSource
     });
   }
-  function currentFen() {
-    var _a, _b, _c, _d, _e;
-    const fromNode = (_c = (_b = (_a = window.site) == null ? void 0 : _a.analysis) == null ? void 0 : _b.node) == null ? void 0 : _c.fen;
-    if (fromNode) return fromNode;
-    const ground = (_e = (_d = window.lichess) == null ? void 0 : _d.chessground) == null ? void 0 : _e.call(_d);
-    if (ground) {
-      const pieceFen = ground.getFen();
-      return pieceFen;
-    }
-    return null;
+  function waitForPageBridge() {
+    return new Promise((resolve) => {
+      const done = () => {
+        document.removeEventListener("pam-ct-bridge-ready", done);
+        resolve();
+      };
+      document.addEventListener("pam-ct-bridge-ready", done);
+      installPageBridge();
+      setTimeout(() => {
+        document.removeEventListener("pam-ct-bridge-ready", done);
+        resolve();
+      }, 6e4);
+    });
   }
-  function applyBoardOrientation(bottomColor) {
-    var _a, _b;
-    const ground = (_b = (_a = window.lichess) == null ? void 0 : _a.chessground) == null ? void 0 : _b.call(_a);
-    if (!ground) return;
-    if (ground.state.orientation !== bottomColor) {
-      ground.set({ orientation: bottomColor });
-      mirrorLog("debug", "board orientation", { bottomColor });
-    }
-  }
-  function navigateToFen(fen, bottomColor) {
+  function applyViaPageBridge(fen, prevFen, bottomColor) {
     const pairId = getMirrorSessionId() || parsePamMirrorParam();
-    const pathFen = encodeFenForAnalysisUrl(fen);
-    const url = pairId ? analysisBoardUrl(fen, pairId, bottomColor ?? parsePamOrientParam() ?? "white") : `https://lichess.org/analysis/standard/${pathFen}`;
-    if (location.href !== url) window.location.assign(url);
-  }
-  function atTargetPosition(here, targetFen) {
-    return pieceSideKey(here) === pieceSideKey(targetFen);
-  }
-  async function applyPosition(fen, prevFen, bottomColor) {
-    var _a, _b;
-    await waitForLichessAnalysis();
-    if (bottomColor) applyBoardOrientation(bottomColor);
-    const playUci = (_b = (_a = window.lichess) == null ? void 0 : _a.analysis) == null ? void 0 : _b.playUci;
-    if (!playUci) {
-      navigateToFen(fen, bottomColor);
-      return true;
-    }
-    const here = currentFen();
-    if (here && atTargetPosition(here, fen)) return true;
-    const tryPlay = async (uci) => {
-      try {
-        playUci(uci);
-      } catch (e2) {
-        mirrorLog("warn", "playUci threw", { uci, err: String(e2) });
-        return false;
-      }
-      for (let i = 0; i < 12; i++) {
-        await new Promise((r2) => requestAnimationFrame(r2));
-        const after = currentFen();
-        if (after && atTargetPosition(after, fen)) return true;
-      }
-      return false;
-    };
-    const fromFen = here ?? prevFen;
-    if (fromFen && !atTargetPosition(fromFen, fen)) {
-      const uci = singleMoveUci(fromFen, fen);
-      if (uci && await tryPlay(uci)) return true;
-    }
-    mirrorLog("info", "navigate to FEN", { fen, here });
-    navigateToFen(fen, bottomColor);
-    return true;
+    const orient = bottomColor ?? parsePamOrientParam() ?? "white";
+    const navigateUrl = pairId ? analysisBoardUrl(fen, pairId, orient) : `https://lichess.org/analysis/standard/${encodeFenForAnalysisUrl(fen)}`;
+    const uciMove = prevFen && prevFen !== fen ? singleMoveUci(prevFen, fen) : null;
+    const id = crypto.randomUUID();
+    return new Promise((resolve) => {
+      const onResult = (ev) => {
+        const detail = ev.detail;
+        if (!detail || detail.id !== id) return;
+        document.removeEventListener("pam-ct-apply-result", onResult);
+        resolve(detail.result ?? "failed");
+      };
+      document.addEventListener("pam-ct-apply-result", onResult);
+      document.dispatchEvent(
+        new CustomEvent("pam-ct-apply-position", {
+          detail: {
+            id,
+            fen,
+            uci: uciMove,
+            navigateUrl,
+            bottomColor: orient
+          }
+        })
+      );
+      setTimeout(() => {
+        document.removeEventListener("pam-ct-apply-result", onResult);
+        resolve("failed");
+      }, 12e3);
+    });
   }
   let drainInFlight = false;
+  let pendingPayload = null;
+  let analysisReady = false;
   async function drainPayload(payload) {
+    if (!analysisReady) return;
     if (!shouldApply(payload)) return;
-    if (drainInFlight) return;
+    if (drainInFlight) {
+      if (!pendingPayload || payload.seq > pendingPayload.seq) {
+        pendingPayload = payload;
+      }
+      return;
+    }
     drainInFlight = true;
     try {
       if (!getMirrorSessionId()) setMirrorSessionId(payload.targetId);
@@ -1894,13 +1941,33 @@
         prevFen: payload.prevFen
       });
       writeDomProbe({ lastFen: payload.fen, seq: payload.seq });
-      await applyPosition(payload.fen, payload.prevFen, payload.bottomColor);
-      markPayloadApplied(payload.seq);
-      mirrorLog("info", "marked applied", { seq: payload.seq });
+      const result = await applyViaPageBridge(
+        payload.fen,
+        payload.prevFen,
+        payload.bottomColor
+      );
+      if (result === "navigating") {
+        markPayloadApplied(payload.seq, payload.targetId);
+        mirrorLog("info", "marked applied (navigating)", { seq: payload.seq });
+        return;
+      }
+      if (result === "at_target" || result === "played") {
+        markPayloadApplied(payload.seq, payload.targetId);
+        mirrorLog("info", "marked applied", { seq: payload.seq, result });
+      } else {
+        mirrorLog("warn", "position not at target after apply", {
+          seq: payload.seq,
+          want: payload.fen,
+          result
+        });
+      }
     } catch (e2) {
       mirrorLog("warn", "drain failed", { seq: payload.seq, err: String(e2) });
     } finally {
       drainInFlight = false;
+      const next = pendingPayload;
+      pendingPayload = null;
+      if (next && shouldApply(next)) void drainPayload(next);
     }
   }
   function startLichessMirror() {
@@ -1912,29 +1979,27 @@
       setMirrorSessionId(fromUrl);
       setTargetId(fromUrl);
     }
-    void waitForLichessAnalysis().then(() => {
-      var _a, _b;
-      const orient = parsePamOrientParam();
-      if (orient) applyBoardOrientation(orient);
-      mirrorLog("info", "Lichess mirror listening", {
+    initLastAppliedSeqFromStorage();
+    void waitForPageBridge().then(() => {
+      analysisReady = true;
+      window.__pamCtAnalysisReady = true;
+      mirrorLog("info", "Lichess mirror listening (page bridge)", {
         pamMirror: fromUrl,
-        pamOrient: orient,
         session: getMirrorSessionId(),
-        targetId: getTargetId(),
-        cgOrientation: (_b = (_a = window.lichess) == null ? void 0 : _a.chessground) == null ? void 0 : _b.call(_a).state.orientation
+        targetId: getTargetId()
       });
       const latest = getLatestPayload();
       if (latest) void drainPayload(latest);
+      setInterval(() => {
+        const p = getLatestPayload();
+        if (p) void drainPayload(p);
+      }, 400);
     });
     setInterval(() => writeDomProbe({}), 2e3);
     onMirrorPayload((payload) => {
       mirrorLog("debug", "payload event", { seq: payload.seq });
       void drainPayload(payload);
     });
-    setInterval(() => {
-      const latest = getLatestPayload();
-      if (latest) void drainPayload(latest);
-    }, 400);
   }
   if (window.__pamCtMirrorLoaded) ;
   else {

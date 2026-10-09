@@ -42,6 +42,7 @@ export default defineConfig({
           'GM_setValue',
           'GM_getValue',
           'GM_addValueChangeListener',
+          'GM_addElement',
           'GM_openInTab',
         ],
         updateURL: `${RAW_BASE}/chesstempo-lichess-mirror.meta.js`,

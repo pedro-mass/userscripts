@@ -14,6 +14,8 @@ pnpm --filter @userscripts/chesstempo-lichess-mirror build
 
 Install `dist/chesstempo-lichess-mirror.user.js` in Tampermonkey (CT + Lichess matches).
 
+**0.1.12+** Lichess `playUci` runs in the page main world via `GM_addElement` (TM isolated world cannot see `window.lichess`). Reinstall in TM after grant changes.
+
 **Agent / CDP update to latest build** (Brave on 9222):
 
 ```bash

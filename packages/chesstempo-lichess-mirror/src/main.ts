@@ -4,6 +4,7 @@ import { startLichessMirror } from './lichess';
 declare global {
   interface Window {
     __pamCtMirrorLoaded?: boolean;
+    __pamCtAnalysisReady?: boolean;
   }
 }
 
