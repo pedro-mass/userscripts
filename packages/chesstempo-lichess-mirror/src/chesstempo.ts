@@ -1,5 +1,7 @@
-import { CT_MIRROR_FEN_EVENT, CT_PAGE_HOOK_SOURCE } from './ct-page-hook';
+import { fenDiagnostics, readCurrentCtFen } from './ct-fen';
+import { hookOpeningExplorerSetPosition } from './ct-page-hook';
 import { analysisBoardUrl } from './fen';
+import { isDebugEnabled, mirrorLog } from './log';
 import {
   getTargetId,
   publishFromCt,
@@ -12,16 +14,6 @@ const STATUS_ID = 'pam-ct-mirror-status';
 let lastFen: string | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-function readFenFromExplorer(): string | null {
-  if (lastFen) return lastFen;
-  const explorer = document.querySelector('opening-explorer');
-  const fromData = explorer?.getAttribute('data-pam-mirror-fen');
-  if (fromData) return fromData;
-  const el = explorer as (HTMLElement & { fen?: string }) | null;
-  if (el?.fen) return el.fen;
-  return null;
-}
-
 function onFenChange(fen: string): void {
   const prev = lastFen;
   lastFen = fen;
@@ -32,29 +24,9 @@ function onFenChange(fen: string): void {
 
   if (debounceTimer) clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
+    mirrorLog('debug', 'publish', { fen, prev, targetId });
     publishFromCt(fen, prev, targetId);
   }, 120);
-}
-
-function injectPageWorldHook(): void {
-  const flag = 'pamCtPageHookInjected';
-  if (document.documentElement.dataset[flag] === '1') return;
-  document.documentElement.dataset[flag] = '1';
-  const blob = new Blob([CT_PAGE_HOOK_SOURCE], {
-    type: 'text/javascript',
-  });
-  const url = URL.createObjectURL(blob);
-  const el = document.createElement('script');
-  el.src = url;
-  el.onload = () => URL.revokeObjectURL(url);
-  (document.head || document.documentElement).appendChild(el);
-}
-
-function listenPageFenEvents(): void {
-  window.addEventListener(CT_MIRROR_FEN_EVENT, (ev) => {
-    const fen = (ev as CustomEvent<{ fen?: string }>).detail?.fen;
-    if (fen) onFenChange(fen);
-  });
 }
 
 function injectUi(): void {
@@ -81,12 +53,15 @@ function injectUi(): void {
   const status = document.createElement('span');
   status.id = STATUS_ID;
   status.style.cssText = 'font-size:12px;color:#666;';
-  updateStatus('');
+  updateStatus(isDebugEnabled() ? 'debug on (console)' : '');
 
   btn.addEventListener('click', () => {
-    const fen = readFenFromExplorer();
+    const fen = readCurrentCtFen(lastFen);
+    const diag = fenDiagnostics();
+    mirrorLog('info', 'Open in Lichess click', { fen, ...diag });
     if (!fen) {
-      updateStatus('No position — open the repertoire editor first.');
+      updateStatus('No position — see console [ct-mirror]');
+      mirrorLog('warn', 'no FEN', diag);
       return;
     }
     const pairId = crypto.randomUUID();
@@ -95,6 +70,7 @@ function injectUi(): void {
     publishFromCt(fen, null, pairId);
     GM_openInTab(analysisBoardUrl(fen, pairId), { active: true });
     updateStatus(`Opened · mirror ${pairId.slice(0, 8)}…`);
+    mirrorLog('info', 'opened tab', { pairId, fen });
   });
 
   wrap.append(btn, status);
@@ -107,10 +83,20 @@ function updateStatus(text: string): void {
 }
 
 export function startChesstempoMirror(): void {
-  injectPageWorldHook();
-  listenPageFenEvents();
+  mirrorLog('info', 'CT mirror start', {
+    injectInto: 'page',
+    debug: isDebugEnabled(),
+  });
+
+  hookOpeningExplorerSetPosition(onFenChange);
+
   const uiInterval = setInterval(() => {
     injectUi();
+    const fen = readCurrentCtFen(lastFen);
+    if (fen && !lastFen) {
+      lastFen = fen;
+      mirrorLog('debug', 'seed FEN from board', { fen });
+    }
     if (document.getElementById(BTN_ID)) clearInterval(uiInterval);
   }, 500);
   setTimeout(() => clearInterval(uiInterval), 120_000);

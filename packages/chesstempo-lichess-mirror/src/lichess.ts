@@ -5,9 +5,11 @@ import {
   positionKey,
   singleMoveUci,
 } from './fen';
+import { mirrorLog } from './log';
 import type { MirrorPayload } from './types';
 import {
   getMirrorSessionId,
+  getTargetId,
   onMirrorPayload,
   setMirrorSessionId,
   shouldApply,
@@ -23,7 +25,7 @@ function waitForLichessAnalysis(): Promise<void> {
         return;
       }
       if (Date.now() - start > 60_000) {
-        console.warn('[ct-mirror] Lichess analysis API not found');
+        mirrorLog('warn', 'Lichess analysis API not found');
         resolve();
         return;
       }
@@ -89,15 +91,27 @@ export function startLichessMirror(): void {
   if (fromUrl) setMirrorSessionId(fromUrl);
 
   void waitForLichessAnalysis().then(() => {
-    console.info('[ct-mirror] Lichess mirror listening', {
+    mirrorLog('info', 'Lichess mirror listening', {
       pamMirror: fromUrl,
-      target: getMirrorSessionId(),
+      session: getMirrorSessionId(),
+      targetId: getTargetId(),
     });
   });
 
   onMirrorPayload((payload: MirrorPayload) => {
-    if (!shouldApply(payload)) return;
+    const apply = shouldApply(payload);
+    mirrorLog('debug', 'payload received', {
+      seq: payload.seq,
+      apply,
+      targetId: getTargetId(),
+      payloadTarget: payload.targetId,
+    });
+    if (!apply) return;
     if (!getMirrorSessionId()) setMirrorSessionId(payload.targetId);
+    mirrorLog('info', 'apply position', {
+      fen: payload.fen,
+      prevFen: payload.prevFen,
+    });
     void applyPosition(payload.fen, payload.prevFen);
   });
 }

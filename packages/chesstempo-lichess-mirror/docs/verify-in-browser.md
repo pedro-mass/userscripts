@@ -32,6 +32,17 @@ Checks: `__pamCtMirrorLoaded`, **Open in Lichess** button, `window.lichess.analy
 
 Manual acceptance: **Open in Lichess** → one new ply on CT → analysis animates or updates FEN.
 
+## Debug logging
+
+Before 0.1.2, logging was minimal — hard to diagnose “no position” / no sync.
+
+1. On CT or Lichess, DevTools console: `localStorage.pamCtMirrorDebug = '1'` then reload both tabs.
+2. Filter console by `[ct-mirror]`.
+3. Click **Open in Lichess** — expect `Open in Lichess click` with `toFen` / `explorerHook`.
+4. Optional ring buffer in Tampermonkey storage: key `ctLichessMirror.recentLog` (last ~40 entries when debug on).
+
+Turn off: `localStorage.removeItem('pamCtMirrorDebug')`.
+
 ## Inject fallback (no Tampermonkey)
 
 `build` writes gitignored `dist/inject.js` (body only). Plain inject **does not** provide `GM_*` — sync will not cross tabs.

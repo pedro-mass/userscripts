@@ -1,3 +1,4 @@
+import { mirrorLog } from './log';
 import type { MirrorPayload } from './types';
 
 const PAYLOAD_KEY = 'ctLichessMirror.payload';
@@ -39,6 +40,7 @@ export function publishFromCt(
     ts: Date.now(),
   };
   GM_setValue(PAYLOAD_KEY, payload);
+  mirrorLog('debug', 'GM publish', { seq, targetId, fen });
 }
 
 export function onMirrorPayload(
@@ -56,8 +58,20 @@ let lastAppliedSeq = 0;
 
 export function shouldApply(payload: MirrorPayload): boolean {
   const targetId = getTargetId();
-  if (!targetId || payload.targetId !== targetId) return false;
-  if (payload.seq <= lastAppliedSeq) return false;
+  if (!targetId || payload.targetId !== targetId) {
+    mirrorLog('debug', 'skip apply: target mismatch', {
+      have: targetId,
+      want: payload.targetId,
+    });
+    return false;
+  }
+  if (payload.seq <= lastAppliedSeq) {
+    mirrorLog('debug', 'skip apply: stale seq', {
+      seq: payload.seq,
+      lastAppliedSeq,
+    });
+    return false;
+  }
   lastAppliedSeq = payload.seq;
   return true;
 }

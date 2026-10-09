@@ -50,14 +50,26 @@ const ctPage = await ensurePage(
 );
 await ctPage.waitForTimeout(3000);
 
-const ctProbe = await ctPage.evaluate(() => ({
-  url: location.href,
-  mirrorLoaded: !!window.__pamCtMirrorLoaded,
-  openBtn: !!document.getElementById('pam-ct-open-lichess'),
-  openingExplorer: !!document.querySelector('opening-explorer'),
-  gmScript:
-    typeof GM_info !== 'undefined' ? GM_info?.script?.name ?? null : null,
-}));
+const ctProbe = await ctPage.evaluate(() => {
+  const board = document.querySelector('chess-board');
+  let boardFen = null;
+  try {
+    boardFen = board?.toFen?.() ?? null;
+  } catch {
+    boardFen = null;
+  }
+  const explorer = document.querySelector('opening-explorer');
+  return {
+    url: location.href,
+    mirrorLoaded: !!window.__pamCtMirrorLoaded,
+    openBtn: !!document.getElementById('pam-ct-open-lichess'),
+    openingExplorer: !!explorer,
+    explorerHooked: explorer?.dataset?.pamMirrorPageHook === '1',
+    chessBoardFen: boardFen,
+    gmScript:
+      typeof GM_info !== 'undefined' ? GM_info?.script?.name ?? null : null,
+  };
+});
 
 const liPage = await ensurePage(
   (u) => u.includes('lichess.org/analysis'),
