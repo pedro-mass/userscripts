@@ -14,6 +14,15 @@ pnpm --filter @userscripts/chesstempo-lichess-mirror build
 
 Install `dist/chesstempo-lichess-mirror.user.js` in Tampermonkey (CT + Lichess matches).
 
+**Agent / CDP update to latest build** (Brave on 9222):
+
+```bash
+pnpm build
+pnpm tm:serve    # terminal 1 — serves dist on :8765
+# In Brave, open http://127.0.0.1:8765/chesstempo-lichess-mirror.user.js → TM update UI
+pnpm tm:update   # clicks input[value=Update] on ask.html via CDP
+```
+
 ## Brave + CDP (preferred)
 
 1. Quit Brave (Cmd+Q).
