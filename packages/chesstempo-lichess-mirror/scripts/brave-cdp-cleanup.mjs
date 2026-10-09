@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Close accumulated mirror / Tampermonkey tabs in Brave (CDP).
+ * Close accumulated mirror / Tampermonkey / CDP-test tabs in Brave.
  * Safe: keeps normal browsing tabs; targets mirror test clutter only.
  */
 import { chromium } from 'playwright';
@@ -8,14 +8,16 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CDP = process.env.CDP_URL ?? 'http://127.0.0.1:9222';
+const TM_PORT = process.env.TM_SERVE_PORT ?? '8765';
 
 export function isMirrorClutterUrl(url) {
   if (!url || url.startsWith('devtools://')) return false;
+  if (url === 'about:blank') return true;
   if (url.includes('lichess.org/analysis')) return true;
   if (url.includes('ask.html')) return true;
   if (url.includes('tampermonkey.net/script_installation')) return true;
   if (url.includes('chesstempo-lichess-mirror.user.js')) return true;
-  if (url.includes(`127.0.0.1:${process.env.TM_SERVE_PORT ?? 8765}/`)) return true;
+  if (url.includes(`127.0.0.1:${TM_PORT}/`)) return true;
   return false;
 }
 

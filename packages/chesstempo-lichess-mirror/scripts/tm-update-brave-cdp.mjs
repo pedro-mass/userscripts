@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 /**
- * Click Tampermonkey "Update" on an open ask.html tab (Brave CDP).
- * Prereq: open http://127.0.0.1:8765/chesstempo-lichess-mirror.user.js once
- * (pnpm tm:serve) so TM shows the update diff, or run after pnpm tm:update opens it.
+ * Click Tampermonkey Update/Reinstall/Install (Brave CDP).
+ * Reuses a clutter tab for the install URL when possible (avoids about:blank spam).
  */
 import { chromium } from 'playwright';
-import { cleanupMirrorTabs } from './brave-cdp-cleanup.mjs';
+import { cleanupMirrorTabs, isMirrorClutterUrl } from './brave-cdp-cleanup.mjs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -29,6 +28,24 @@ async function ensureServer() {
   }
 }
 
+function pickInstallCarrier(ctx) {
+  const pages = ctx.pages();
+  const ask = pages.find((p) => p.url().includes('ask.html'));
+  if (ask) return { page: ask, created: false };
+
+  const clutter = pages.find(
+    (p) =>
+      isMirrorClutterUrl(p.url()) &&
+      !p.url().includes('chesstempo.com/opening-training'),
+  );
+  if (clutter) return { page: clutter, created: false };
+
+  const blank = pages.find((p) => p.url() === 'about:blank');
+  if (blank) return { page: blank, created: false };
+
+  return { page: null, created: false };
+}
+
 let browser;
 try {
   browser = await chromium.connectOverCDP(CDP);
@@ -41,17 +58,17 @@ const server = await ensureServer();
 const ctx = browser.contexts()[0];
 const cleanupBefore = await cleanupMirrorTabs(ctx);
 
-let ask = ctx.pages().find((p) => {
-  if (!p.url().includes('ask.html')) return false;
-  return true;
-});
+let { page: carrier } = pickInstallCarrier(ctx);
+const hasAsk = ctx.pages().some((p) => p.url().includes('ask.html'));
 
-if (!ask) {
-  const page = await ctx.newPage();
-  await page.goto(SCRIPT_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-  for (let i = 0; i < 20; i++) {
+if (!hasAsk) {
+  if (!carrier) {
+    carrier = await ctx.newPage();
+  }
+  await carrier.goto(SCRIPT_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  for (let i = 0; i < 24; i++) {
     if (ctx.pages().some((p) => p.url().includes('ask.html'))) break;
-    await page.waitForTimeout(500);
+    await carrier.waitForTimeout(500);
   }
 }
 
@@ -72,18 +89,20 @@ for (const page of candidates) {
   await page.bringToFront();
   await btn.click();
   clicked = true;
-  await new Promise((r) => setTimeout(r, 800));
+  await new Promise((r) => setTimeout(r, 1200));
   break;
 }
+
+const cleanupAfter = await cleanupMirrorTabs(ctx);
 
 try {
   await browser.close();
 } catch {
   /* reinstall may detach CDP target */
 }
+
 if (server) server.kill();
 
-const cleanupAfter = await cleanupMirrorTabs(ctx);
 console.log(
   JSON.stringify(
     { ok: clicked, scriptUrl: SCRIPT_URL, cleanupBefore, cleanupAfter },

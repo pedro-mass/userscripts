@@ -21,8 +21,10 @@ pnpm build
 pnpm tm:serve    # terminal 1 — serves dist on :8765
 # In Brave, open http://127.0.0.1:8765/chesstempo-lichess-mirror.user.js → TM update UI
 pnpm tm:update   # clicks input[value=Update] on ask.html via CDP
-pnpm cleanup:brave   # close stray Lichess mirror / TM install tabs (run between test loops)
+pnpm cleanup:brave   # close stray Lichess mirror / TM install / about:blank tabs (run between test loops)
 ```
+
+`pnpm tm:update` reuses an existing clutter or `about:blank` tab for the install URL when possible, then cleanup closes TM `ask.html`, install pages, and blank tabs left by CDP `newPage()`.
 
 ## Brave + CDP (preferred)
 
