@@ -3,7 +3,9 @@ import {
   readBottomColorFromBoard,
   readCurrentCtFen,
 } from './ct-fen';
+import { startChessBoardPoll } from './ct-board-poll';
 import { hookOpeningExplorerSetPosition } from './ct-page-hook';
+import { pieceSideKey } from './fen';
 import { analysisBoardUrl } from './fen';
 import { isDebugEnabled, mirrorLog } from './log';
 import { writeDomProbe } from './probe';
@@ -20,6 +22,7 @@ let lastFen: string | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 function onFenChange(fen: string): void {
+  if (lastFen && pieceSideKey(lastFen) === pieceSideKey(fen)) return;
   const prev = lastFen;
   lastFen = fen;
   const targetId = getTargetId();
@@ -98,6 +101,7 @@ export function startChesstempoMirror(): void {
   writeDomProbe({ lastFen: null });
 
   hookOpeningExplorerSetPosition(onFenChange);
+  startChessBoardPoll(onFenChange);
 
   const uiInterval = setInterval(() => {
     injectUi();

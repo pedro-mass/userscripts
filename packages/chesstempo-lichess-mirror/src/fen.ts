@@ -19,6 +19,12 @@ export function positionKey(fen: string): string {
   return parts.slice(0, 4).join(' ');
 }
 
+/** Piece placement + side only (CT vs Lichess often differ on ep / clocks). */
+export function pieceSideKey(fen: string): string {
+  const parts = fen.trim().split(/\s+/);
+  return `${parts[0]} ${parts[1]}`;
+}
+
 export function encodeFenForAnalysisUrl(fen: string): string {
   return encodeURIComponent(fen.trim())
     .replace(/%20/g, '_')

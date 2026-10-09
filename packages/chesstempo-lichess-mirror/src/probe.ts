@@ -1,5 +1,10 @@
 import { readFenFromChessBoard, readFenFromExplorerElement } from './ct-fen';
-import { getMirrorSessionId, getTargetId } from './sync';
+import {
+  getLastAppliedSeq,
+  getMirrorSessionId,
+  getPublishedSeq,
+  getTargetId,
+} from './sync';
 
 const PROBE_ID = 'pam-ct-mirror-probe';
 
@@ -15,6 +20,8 @@ export type MirrorProbeState = {
   boardFen: string | null;
   explorerFen: string | null;
   seq: number | null;
+  publishedSeq: number | null;
+  lastAppliedSeq: number | null;
 };
 
 export function writeDomProbe(partial: {
@@ -37,6 +44,8 @@ export function writeDomProbe(partial: {
     boardFen: readFenFromChessBoard(),
     explorerFen: readFenFromExplorerElement(),
     seq,
+    publishedSeq: getPublishedSeq(),
+    lastAppliedSeq: getLastAppliedSeq(),
   };
 
   let el = document.getElementById(PROBE_ID) as HTMLScriptElement | null;

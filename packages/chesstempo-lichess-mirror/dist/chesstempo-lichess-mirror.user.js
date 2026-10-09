@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChessTempo → Lichess mirror
 // @namespace    https://github.com/pedro-mass/userscripts/chesstempo-lichess-mirror
-// @version      0.1.4
+// @version      0.1.5
 // @author       pedro-mass
 // @description  Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).
 // @license      GPL-3.0-only
@@ -87,36 +87,6 @@
       pageHookFlag: !!window.__pamCtPageHook,
       injectFlag: document.documentElement.dataset.pamCtPageHookInjected
     };
-  }
-  const hookedExplorers = /* @__PURE__ */ new WeakSet();
-  function hookOpeningExplorerSetPosition(onFen) {
-    const hookOne = (explorer) => {
-      if (!explorer.setPosition || hookedExplorers.has(explorer)) return;
-      hookedExplorers.add(explorer);
-      const orig = explorer.setPosition.bind(explorer);
-      explorer.setPosition = (fen) => {
-        orig(fen);
-        if (fen) onFen(fen);
-      };
-      if (explorer.fen) onFen(explorer.fen);
-      mirrorLog("debug", "hooked opening-explorer.setPosition");
-    };
-    const scan = () => {
-      const el = document.querySelector("opening-explorer");
-      if (el) hookOne(el);
-    };
-    scan();
-    customElements.whenDefined("opening-explorer").then(scan);
-    let debounce = null;
-    new MutationObserver(() => {
-      if (debounce) return;
-      debounce = setTimeout(() => {
-        debounce = null;
-        const el = document.querySelector("opening-explorer");
-        if (!el || hookedExplorers.has(el)) return;
-        scan();
-      }, 300);
-    }).observe(document.documentElement, { childList: true, subtree: true });
   }
   class r {
     unwrap(r2, t2) {
@@ -1495,6 +1465,10 @@
     const parts = fen.trim().split(/\s+/);
     return parts.slice(0, 4).join(" ");
   }
+  function pieceSideKey(fen) {
+    const parts = fen.trim().split(/\s+/);
+    return `${parts[0]} ${parts[1]}`;
+  }
   function encodeFenForAnalysisUrl(fen) {
     return encodeURIComponent(fen.trim()).replace(/%20/g, "_").replace(/%2F/g, "/");
   }
@@ -1548,8 +1522,16 @@
   function setTargetId(id) {
     GM_setValue(TARGET_KEY, id);
   }
+  function getLatestPayload() {
+    const v = GM_getValue(PAYLOAD_KEY, void 0);
+    if (!v || typeof v !== "object" || v.v !== 1 || v.from !== "ct") return null;
+    return v;
+  }
+  function getPublishedSeq() {
+    return GM_getValue(SEQ_KEY, 0) || 0;
+  }
   function publishFromCt(fen, prevFen, targetId, bottomColor) {
-    const seq = (GM_getValue(SEQ_KEY, 0) || 0) + 1;
+    const seq = getPublishedSeq() + 1;
     GM_setValue(SEQ_KEY, seq);
     const payload = {
       v: 1,
@@ -1565,19 +1547,25 @@
     mirrorLog("debug", "GM publish", { seq, targetId, fen });
   }
   function onMirrorPayload(handler) {
-    GM_addValueChangeListener(PAYLOAD_KEY, (_key, _old, newValue, remote) => {
-      if (!remote || !newValue || typeof newValue !== "object") return;
+    GM_addValueChangeListener(PAYLOAD_KEY, (_key, _old, newValue) => {
+      if (!newValue || typeof newValue !== "object") return;
       const p = newValue;
       if (p.v !== 1 || p.from !== "ct") return;
       handler(p);
     });
   }
   let lastAppliedSeq = 0;
-  function shouldApply(payload) {
+  function getLastAppliedSeq() {
+    return lastAppliedSeq;
+  }
+  function payloadMatchesSession(payload) {
     const targetId = getTargetId();
-    if (!targetId || payload.targetId !== targetId) {
+    return !!(targetId && payload.targetId === targetId);
+  }
+  function shouldApply(payload) {
+    if (!payloadMatchesSession(payload)) {
       mirrorLog("debug", "skip apply: target mismatch", {
-        have: targetId,
+        have: getTargetId(),
         want: payload.targetId
       });
       return false;
@@ -1589,8 +1577,52 @@
       });
       return false;
     }
-    lastAppliedSeq = payload.seq;
     return true;
+  }
+  function markPayloadApplied(seq) {
+    if (seq > lastAppliedSeq) lastAppliedSeq = seq;
+  }
+  function startChessBoardPoll(onFen) {
+    let lastSeen = null;
+    setInterval(() => {
+      if (!getTargetId()) return;
+      const fen = readFenFromChessBoard();
+      if (!fen) return;
+      if (lastSeen && pieceSideKey(fen) === pieceSideKey(lastSeen)) return;
+      lastSeen = fen;
+      mirrorLog("debug", "board poll fen change", { fen });
+      onFen(fen);
+    }, 250);
+  }
+  const hookedExplorers = /* @__PURE__ */ new WeakSet();
+  function hookOpeningExplorerSetPosition(onFen) {
+    const hookOne = (explorer) => {
+      if (!explorer.setPosition || hookedExplorers.has(explorer)) return;
+      hookedExplorers.add(explorer);
+      const orig = explorer.setPosition.bind(explorer);
+      explorer.setPosition = (fen) => {
+        orig(fen);
+        if (fen) onFen(fen);
+      };
+      if (explorer.fen) onFen(explorer.fen);
+      mirrorLog("debug", "hooked opening-explorer.setPosition");
+    };
+    const scan = () => {
+      const el = document.querySelector("opening-explorer");
+      if (el) hookOne(el);
+    };
+    scan();
+    customElements.whenDefined("opening-explorer").then(scan);
+    let debounce = null;
+    new MutationObserver(() => {
+      if (debounce) return;
+      debounce = setTimeout(() => {
+        debounce = null;
+        const el = document.querySelector("opening-explorer");
+        if (!el || hookedExplorers.has(el)) return;
+        scan();
+      }, 300);
+    }).observe(document.documentElement, { childList: true, subtree: true });
   }
   const PROBE_ID = "pam-ct-mirror-probe";
   function writeDomProbe(partial) {
@@ -1606,7 +1638,9 @@
       lastFen: partial.lastFen ?? null,
       boardFen: readFenFromChessBoard(),
       explorerFen: readFenFromExplorerElement(),
-      seq
+      seq,
+      publishedSeq: getPublishedSeq(),
+      lastAppliedSeq: getLastAppliedSeq()
     };
     let el = document.getElementById(PROBE_ID);
     if (!el) {
@@ -1623,6 +1657,7 @@
   let lastFen = null;
   let debounceTimer = null;
   function onFenChange(fen) {
+    if (lastFen && pieceSideKey(lastFen) === pieceSideKey(fen)) return;
     const prev = lastFen;
     lastFen = fen;
     const targetId = getTargetId();
@@ -1684,6 +1719,7 @@
     });
     writeDomProbe({ lastFen: null });
     hookOpeningExplorerSetPosition(onFenChange);
+    startChessBoardPoll(onFenChange);
     const uiInterval = setInterval(() => {
       injectUi();
       const fen = readCurrentCtFen(lastFen);
@@ -1739,11 +1775,14 @@
       mirrorLog("debug", "board orientation", { bottomColor });
     }
   }
-  function navigateToFen(fen) {
+  function navigateToFen(fen, bottomColor) {
     const pairId = getMirrorSessionId() || parsePamMirrorParam();
     const pathFen = encodeFenForAnalysisUrl(fen);
-    const url = pairId ? analysisBoardUrl(fen, pairId) : `https://lichess.org/analysis/standard/${pathFen}`;
+    const url = pairId ? analysisBoardUrl(fen, pairId, bottomColor ?? parsePamOrientParam() ?? "white") : `https://lichess.org/analysis/standard/${pathFen}`;
     if (location.href !== url) window.location.assign(url);
+  }
+  function atTargetPosition(here, targetFen) {
+    return pieceSideKey(here) === pieceSideKey(targetFen);
   }
   async function applyPosition(fen, prevFen, bottomColor) {
     var _a, _b;
@@ -1751,30 +1790,53 @@
     if (bottomColor) applyBoardOrientation(bottomColor);
     const playUci = (_b = (_a = window.lichess) == null ? void 0 : _a.analysis) == null ? void 0 : _b.playUci;
     if (!playUci) {
-      navigateToFen(fen);
-      return;
+      navigateToFen(fen, bottomColor);
+      return true;
     }
     const here = currentFen();
-    if (here && positionKey(here) === positionKey(fen)) return;
-    if (prevFen && here && positionKey(here) === positionKey(prevFen)) {
+    if (here && atTargetPosition(here, fen)) return true;
+    const tryPlay = (uci) => {
+      playUci(uci);
+      const after = currentFen();
+      return !!(after && atTargetPosition(after, fen));
+    };
+    if (prevFen && here && pieceSideKey(here) === pieceSideKey(prevFen)) {
       const uci = singleMoveUci(prevFen, fen);
-      if (uci) {
-        playUci(uci);
-        return;
-      }
+      if (uci && tryPlay(uci)) return true;
     }
-    if (here && positionKey(here) !== positionKey(fen)) {
+    if (here && !atTargetPosition(here, fen)) {
       const uci = singleMoveUci(here, fen);
-      if (uci) {
-        playUci(uci);
-        return;
-      }
+      if (uci && tryPlay(uci)) return true;
     }
-    navigateToFen(fen);
+    mirrorLog("info", "navigate to FEN", { fen });
+    navigateToFen(fen, bottomColor);
+    return true;
+  }
+  let drainInFlight = false;
+  async function drainPayload(payload) {
+    if (!shouldApply(payload)) return;
+    if (drainInFlight) return;
+    drainInFlight = true;
+    try {
+      if (!getMirrorSessionId()) setMirrorSessionId(payload.targetId);
+      mirrorLog("info", "apply position", {
+        seq: payload.seq,
+        fen: payload.fen,
+        prevFen: payload.prevFen
+      });
+      writeDomProbe({ lastFen: payload.fen, seq: payload.seq });
+      await applyPosition(payload.fen, payload.prevFen, payload.bottomColor);
+      markPayloadApplied(payload.seq);
+    } finally {
+      drainInFlight = false;
+    }
   }
   function startLichessMirror() {
     const fromUrl = parsePamMirrorParam();
-    if (fromUrl) setMirrorSessionId(fromUrl);
+    if (fromUrl) {
+      setMirrorSessionId(fromUrl);
+      setTargetId(fromUrl);
+    }
     void waitForLichessAnalysis().then(() => {
       var _a, _b;
       const orient = parsePamOrientParam();
@@ -1786,25 +1848,18 @@
         targetId: getTargetId(),
         cgOrientation: (_b = (_a = window.lichess) == null ? void 0 : _a.chessground) == null ? void 0 : _b.call(_a).state.orientation
       });
+      const latest = getLatestPayload();
+      if (latest) void drainPayload(latest);
     });
     setInterval(() => writeDomProbe({}), 2e3);
     onMirrorPayload((payload) => {
-      const apply = shouldApply(payload);
-      mirrorLog("debug", "payload received", {
-        seq: payload.seq,
-        apply,
-        targetId: getTargetId(),
-        payloadTarget: payload.targetId
-      });
-      if (!apply) return;
-      if (!getMirrorSessionId()) setMirrorSessionId(payload.targetId);
-      mirrorLog("info", "apply position", {
-        fen: payload.fen,
-        prevFen: payload.prevFen
-      });
-      writeDomProbe({ lastFen: payload.fen, seq: payload.seq });
-      void applyPosition(payload.fen, payload.prevFen, payload.bottomColor);
+      mirrorLog("debug", "payload event", { seq: payload.seq });
+      void drainPayload(payload);
     });
+    setInterval(() => {
+      const latest = getLatestPayload();
+      if (latest) void drainPayload(latest);
+    }, 400);
   }
   if (window.__pamCtMirrorLoaded) ;
   else {

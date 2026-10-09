@@ -23,13 +23,23 @@ export function setTargetId(id: string): void {
   GM_setValue(TARGET_KEY, id);
 }
 
+export function getLatestPayload(): MirrorPayload | null {
+  const v = GM_getValue<MirrorPayload | undefined>(PAYLOAD_KEY, undefined);
+  if (!v || typeof v !== 'object' || v.v !== 1 || v.from !== 'ct') return null;
+  return v;
+}
+
+export function getPublishedSeq(): number {
+  return GM_getValue<number>(SEQ_KEY, 0) || 0;
+}
+
 export function publishFromCt(
   fen: string,
   prevFen: string | null,
   targetId: string,
   bottomColor?: BottomColor,
 ): void {
-  const seq = (GM_getValue<number>(SEQ_KEY, 0) || 0) + 1;
+  const seq = getPublishedSeq() + 1;
   GM_setValue(SEQ_KEY, seq);
   const payload: MirrorPayload = {
     v: 1,
@@ -48,8 +58,8 @@ export function publishFromCt(
 export function onMirrorPayload(
   handler: (payload: MirrorPayload) => void,
 ): void {
-  GM_addValueChangeListener(PAYLOAD_KEY, (_key, _old, newValue, remote) => {
-    if (!remote || !newValue || typeof newValue !== 'object') return;
+  GM_addValueChangeListener(PAYLOAD_KEY, (_key, _old, newValue) => {
+    if (!newValue || typeof newValue !== 'object') return;
     const p = newValue as MirrorPayload;
     if (p.v !== 1 || p.from !== 'ct') return;
     handler(p);
@@ -58,11 +68,20 @@ export function onMirrorPayload(
 
 let lastAppliedSeq = 0;
 
-export function shouldApply(payload: MirrorPayload): boolean {
+export function getLastAppliedSeq(): number {
+  return lastAppliedSeq;
+}
+
+export function payloadMatchesSession(payload: MirrorPayload): boolean {
   const targetId = getTargetId();
-  if (!targetId || payload.targetId !== targetId) {
+  return !!(targetId && payload.targetId === targetId);
+}
+
+/** True when this payload should be applied (does not advance seq until mark). */
+export function shouldApply(payload: MirrorPayload): boolean {
+  if (!payloadMatchesSession(payload)) {
     mirrorLog('debug', 'skip apply: target mismatch', {
-      have: targetId,
+      have: getTargetId(),
       want: payload.targetId,
     });
     return false;
@@ -74,6 +93,9 @@ export function shouldApply(payload: MirrorPayload): boolean {
     });
     return false;
   }
-  lastAppliedSeq = payload.seq;
   return true;
+}
+
+export function markPayloadApplied(seq: number): void {
+  if (seq > lastAppliedSeq) lastAppliedSeq = seq;
 }

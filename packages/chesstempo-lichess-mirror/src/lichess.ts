@@ -3,17 +3,20 @@ import {
   encodeFenForAnalysisUrl,
   parsePamMirrorParam,
   parsePamOrientParam,
-  positionKey,
+  pieceSideKey,
   singleMoveUci,
 } from './fen';
 import { mirrorLog } from './log';
 import { writeDomProbe } from './probe';
 import type { BottomColor, MirrorPayload } from './types';
 import {
+  getLatestPayload,
   getMirrorSessionId,
   getTargetId,
+  markPayloadApplied,
   onMirrorPayload,
   setMirrorSessionId,
+  setTargetId,
   shouldApply,
 } from './sync';
 
@@ -58,53 +61,83 @@ function applyBoardOrientation(bottomColor: BottomColor): void {
   }
 }
 
-function navigateToFen(fen: string): void {
+function navigateToFen(fen: string, bottomColor?: BottomColor): void {
   const pairId = getMirrorSessionId() || parsePamMirrorParam();
   const pathFen = encodeFenForAnalysisUrl(fen);
   const url = pairId
-    ? analysisBoardUrl(fen, pairId)
+    ? analysisBoardUrl(fen, pairId, bottomColor ?? parsePamOrientParam() ?? 'white')
     : `https://lichess.org/analysis/standard/${pathFen}`;
   if (location.href !== url) window.location.assign(url);
+}
+
+function atTargetPosition(here: string, targetFen: string): boolean {
+  return pieceSideKey(here) === pieceSideKey(targetFen);
 }
 
 async function applyPosition(
   fen: string,
   prevFen: string | null,
   bottomColor?: BottomColor,
-): Promise<void> {
+): Promise<boolean> {
   await waitForLichessAnalysis();
   if (bottomColor) applyBoardOrientation(bottomColor);
   const playUci = window.lichess?.analysis?.playUci;
   if (!playUci) {
-    navigateToFen(fen);
-    return;
+    navigateToFen(fen, bottomColor);
+    return true;
   }
 
   const here = currentFen();
-  if (here && positionKey(here) === positionKey(fen)) return;
+  if (here && atTargetPosition(here, fen)) return true;
 
-  if (prevFen && here && positionKey(here) === positionKey(prevFen)) {
+  const tryPlay = (uci: string): boolean => {
+    playUci(uci);
+    const after = currentFen();
+    return !!(after && atTargetPosition(after, fen));
+  };
+
+  if (prevFen && here && pieceSideKey(here) === pieceSideKey(prevFen)) {
     const uci = singleMoveUci(prevFen, fen);
-    if (uci) {
-      playUci(uci);
-      return;
-    }
+    if (uci && tryPlay(uci)) return true;
   }
 
-  if (here && positionKey(here) !== positionKey(fen)) {
+  if (here && !atTargetPosition(here, fen)) {
     const uci = singleMoveUci(here, fen);
-    if (uci) {
-      playUci(uci);
-      return;
-    }
+    if (uci && tryPlay(uci)) return true;
   }
 
-  navigateToFen(fen);
+  mirrorLog('info', 'navigate to FEN', { fen });
+  navigateToFen(fen, bottomColor);
+  return true;
+}
+
+let drainInFlight = false;
+
+async function drainPayload(payload: MirrorPayload): Promise<void> {
+  if (!shouldApply(payload)) return;
+  if (drainInFlight) return;
+  drainInFlight = true;
+  try {
+    if (!getMirrorSessionId()) setMirrorSessionId(payload.targetId);
+    mirrorLog('info', 'apply position', {
+      seq: payload.seq,
+      fen: payload.fen,
+      prevFen: payload.prevFen,
+    });
+    writeDomProbe({ lastFen: payload.fen, seq: payload.seq });
+    await applyPosition(payload.fen, payload.prevFen, payload.bottomColor);
+    markPayloadApplied(payload.seq);
+  } finally {
+    drainInFlight = false;
+  }
 }
 
 export function startLichessMirror(): void {
   const fromUrl = parsePamMirrorParam();
-  if (fromUrl) setMirrorSessionId(fromUrl);
+  if (fromUrl) {
+    setMirrorSessionId(fromUrl);
+    setTargetId(fromUrl);
+  }
 
   void waitForLichessAnalysis().then(() => {
     const orient = parsePamOrientParam();
@@ -116,25 +149,19 @@ export function startLichessMirror(): void {
       targetId: getTargetId(),
       cgOrientation: window.lichess?.chessground?.().state.orientation,
     });
+    const latest = getLatestPayload();
+    if (latest) void drainPayload(latest);
   });
 
   setInterval(() => writeDomProbe({}), 2000);
 
-  onMirrorPayload((payload: MirrorPayload) => {
-    const apply = shouldApply(payload);
-    mirrorLog('debug', 'payload received', {
-      seq: payload.seq,
-      apply,
-      targetId: getTargetId(),
-      payloadTarget: payload.targetId,
-    });
-    if (!apply) return;
-    if (!getMirrorSessionId()) setMirrorSessionId(payload.targetId);
-    mirrorLog('info', 'apply position', {
-      fen: payload.fen,
-      prevFen: payload.prevFen,
-    });
-    writeDomProbe({ lastFen: payload.fen, seq: payload.seq });
-    void applyPosition(payload.fen, payload.prevFen, payload.bottomColor);
+  onMirrorPayload((payload) => {
+    mirrorLog('debug', 'payload event', { seq: payload.seq });
+    void drainPayload(payload);
   });
+
+  setInterval(() => {
+    const latest = getLatestPayload();
+    if (latest) void drainPayload(latest);
+  }, 400);
 }

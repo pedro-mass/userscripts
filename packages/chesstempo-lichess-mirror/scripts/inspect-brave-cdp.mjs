@@ -94,6 +94,15 @@ async function collect(browser) {
       idsMatch: !!(tid && paired && paired.pamMirror === tid),
       ctFen: report.ct.probe.lastFen || report.ct.toFen,
       lichessFen: paired?.nodeFen ?? paired?.probe?.lastFen,
+      ctPublishedSeq: report.ct.probe?.publishedSeq,
+      ctLastAppliedSeq: report.ct.probe?.lastAppliedSeq,
+      liPublishedSeq: paired?.probe?.publishedSeq,
+      liLastAppliedSeq: paired?.probe?.lastAppliedSeq,
+      syncGap:
+        report.ct.probe?.publishedSeq != null &&
+        paired?.probe?.lastAppliedSeq != null
+          ? report.ct.probe.publishedSeq - paired.probe.lastAppliedSeq
+          : null,
     };
   }
 
