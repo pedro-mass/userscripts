@@ -10,7 +10,7 @@ export default defineConfig({
       entry: 'src/main.ts',
       userscript: {
         name: 'ChessTempo → Lichess mirror',
-        version: '0.1.0',
+        version: '0.1.1',
         author: 'pedro-mass',
         description:
           'Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).',
@@ -28,7 +28,7 @@ export default defineConfig({
         ],
         license: 'GPL-3.0-only',
         'run-at': 'document-idle',
-        injectInto: 'page',
+        'inject-into': 'page',
         grant: [
           'GM_setValue',
           'GM_getValue',

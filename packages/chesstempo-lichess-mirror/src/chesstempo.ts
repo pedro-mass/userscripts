@@ -1,3 +1,4 @@
+import { CT_MIRROR_FEN_EVENT, CT_PAGE_HOOK_SOURCE } from './ct-page-hook';
 import { analysisBoardUrl } from './fen';
 import {
   getTargetId,
@@ -35,38 +36,25 @@ function onFenChange(fen: string): void {
   }, 120);
 }
 
-function hookOpeningExplorer(): void {
-  const tryHook = (): boolean => {
-    const explorer = document.querySelector('opening-explorer') as
-      | (HTMLElement & {
-          setPosition?: (fen: string) => void;
-          fen?: string;
-        })
-      | null;
-    if (!explorer?.setPosition || explorer.dataset.pamMirrorHook === '1') {
-      return explorer?.dataset.pamMirrorHook === '1';
-    }
-
-    explorer.dataset.pamMirrorHook = '1';
-    const orig = explorer.setPosition.bind(explorer);
-    explorer.setPosition = (fen: string) => {
-      orig(fen);
-      explorer.setAttribute('data-pam-mirror-fen', fen);
-      onFenChange(fen);
-    };
-
-    if (explorer.fen) onFenChange(explorer.fen);
-    return true;
-  };
-
-  if (tryHook()) return;
-
-  customElements.whenDefined('opening-explorer').then(() => {
-    tryHook();
+function injectPageWorldHook(): void {
+  const flag = 'pamCtPageHookInjected';
+  if (document.documentElement.dataset[flag] === '1') return;
+  document.documentElement.dataset[flag] = '1';
+  const blob = new Blob([CT_PAGE_HOOK_SOURCE], {
+    type: 'text/javascript',
   });
+  const url = URL.createObjectURL(blob);
+  const el = document.createElement('script');
+  el.src = url;
+  el.onload = () => URL.revokeObjectURL(url);
+  (document.head || document.documentElement).appendChild(el);
+}
 
-  const obs = new MutationObserver(() => tryHook());
-  obs.observe(document.body, { childList: true, subtree: true });
+function listenPageFenEvents(): void {
+  window.addEventListener(CT_MIRROR_FEN_EVENT, (ev) => {
+    const fen = (ev as CustomEvent<{ fen?: string }>).detail?.fen;
+    if (fen) onFenChange(fen);
+  });
 }
 
 function injectUi(): void {
@@ -119,7 +107,8 @@ function updateStatus(text: string): void {
 }
 
 export function startChesstempoMirror(): void {
-  hookOpeningExplorer();
+  injectPageWorldHook();
+  listenPageFenEvents();
   const uiInterval = setInterval(() => {
     injectUi();
     if (document.getElementById(BTN_ID)) clearInterval(uiInterval);

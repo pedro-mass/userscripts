@@ -88,16 +88,16 @@ export function startLichessMirror(): void {
   const fromUrl = parsePamMirrorParam();
   if (fromUrl) setMirrorSessionId(fromUrl);
 
-  const sessionId = getMirrorSessionId();
-  if (!sessionId) return;
-
   void waitForLichessAnalysis().then(() => {
-    console.info('[ct-mirror] Lichess mirror target', sessionId);
+    console.info('[ct-mirror] Lichess mirror listening', {
+      pamMirror: fromUrl,
+      target: getMirrorSessionId(),
+    });
   });
 
   onMirrorPayload((payload: MirrorPayload) => {
-    const myId = getMirrorSessionId();
-    if (!myId || !shouldApply(payload, myId)) return;
+    if (!shouldApply(payload)) return;
+    if (!getMirrorSessionId()) setMirrorSessionId(payload.targetId);
     void applyPosition(payload.fen, payload.prevFen);
   });
 }

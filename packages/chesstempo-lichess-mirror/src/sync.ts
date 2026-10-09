@@ -54,8 +54,9 @@ export function onMirrorPayload(
 
 let lastAppliedSeq = 0;
 
-export function shouldApply(payload: MirrorPayload, mySessionId: string): boolean {
-  if (payload.targetId !== mySessionId) return false;
+export function shouldApply(payload: MirrorPayload): boolean {
+  const targetId = getTargetId();
+  if (!targetId || payload.targetId !== targetId) return false;
   if (payload.seq <= lastAppliedSeq) return false;
   lastAppliedSeq = payload.seq;
   return true;

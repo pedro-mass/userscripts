@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChessTempo → Lichess mirror
 // @namespace    https://github.com/pedro-mass/userscripts/chesstempo-lichess-mirror
-// @version      0.1.0
+// @version      0.1.1
 // @author       pedro-mass
 // @description  Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).
 // @license      GPL-3.0-only
@@ -17,12 +17,43 @@
 // @grant        GM_getValue
 // @grant        GM_openInTab
 // @grant        GM_setValue
+// @inject-into  page
 // @run-at       document-idle
 // ==/UserScript==
 
 (function () {
   'use strict';
 
+  const CT_PAGE_HOOK_SOURCE = `
+(function () {
+  if (window.__pamCtPageHook) return;
+  window.__pamCtPageHook = true;
+  var EVT = 'pam-ct-mirror-fen';
+  function emit(fen) {
+    if (!fen) return;
+    document.querySelector('opening-explorer')?.setAttribute('data-pam-mirror-fen', fen);
+    window.dispatchEvent(new CustomEvent(EVT, { detail: { fen: fen } }));
+  }
+  function hookExplorer() {
+    var explorer = document.querySelector('opening-explorer');
+    if (!explorer || !explorer.setPosition || explorer.dataset.pamMirrorPageHook === '1') return;
+    explorer.dataset.pamMirrorPageHook = '1';
+    var orig = explorer.setPosition.bind(explorer);
+    explorer.setPosition = function (fen) {
+      orig(fen);
+      emit(fen);
+    };
+    if (explorer.fen) emit(explorer.fen);
+  }
+  hookExplorer();
+  customElements.whenDefined('opening-explorer').then(hookExplorer);
+  new MutationObserver(hookExplorer).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+})();
+`;
+  const CT_MIRROR_FEN_EVENT = "pam-ct-mirror-fen";
   class r {
     unwrap(r2, t2) {
       const e2 = this._chain((t3) => n.ok(r2 ? r2(t3) : t3), (r3) => t2 ? n.ok(t2(r3)) : n.err(r3));
@@ -1468,8 +1499,9 @@
     });
   }
   let lastAppliedSeq = 0;
-  function shouldApply(payload, mySessionId) {
-    if (payload.targetId !== mySessionId) return false;
+  function shouldApply(payload) {
+    const targetId = getTargetId();
+    if (!targetId || payload.targetId !== targetId) return false;
     if (payload.seq <= lastAppliedSeq) return false;
     lastAppliedSeq = payload.seq;
     return true;
@@ -1498,28 +1530,25 @@
       publishFromCt(fen, prev, targetId);
     }, 120);
   }
-  function hookOpeningExplorer() {
-    const tryHook = () => {
-      const explorer = document.querySelector("opening-explorer");
-      if (!(explorer == null ? void 0 : explorer.setPosition) || explorer.dataset.pamMirrorHook === "1") {
-        return (explorer == null ? void 0 : explorer.dataset.pamMirrorHook) === "1";
-      }
-      explorer.dataset.pamMirrorHook = "1";
-      const orig = explorer.setPosition.bind(explorer);
-      explorer.setPosition = (fen) => {
-        orig(fen);
-        explorer.setAttribute("data-pam-mirror-fen", fen);
-        onFenChange(fen);
-      };
-      if (explorer.fen) onFenChange(explorer.fen);
-      return true;
-    };
-    if (tryHook()) return;
-    customElements.whenDefined("opening-explorer").then(() => {
-      tryHook();
+  function injectPageWorldHook() {
+    const flag = "pamCtPageHookInjected";
+    if (document.documentElement.dataset[flag] === "1") return;
+    document.documentElement.dataset[flag] = "1";
+    const blob = new Blob([CT_PAGE_HOOK_SOURCE], {
+      type: "text/javascript"
     });
-    const obs = new MutationObserver(() => tryHook());
-    obs.observe(document.body, { childList: true, subtree: true });
+    const url = URL.createObjectURL(blob);
+    const el = document.createElement("script");
+    el.src = url;
+    el.onload = () => URL.revokeObjectURL(url);
+    (document.head || document.documentElement).appendChild(el);
+  }
+  function listenPageFenEvents() {
+    window.addEventListener(CT_MIRROR_FEN_EVENT, (ev) => {
+      var _a;
+      const fen = (_a = ev.detail) == null ? void 0 : _a.fen;
+      if (fen) onFenChange(fen);
+    });
   }
   function injectUi() {
     if (document.getElementById(BTN_ID)) return;
@@ -1558,7 +1587,8 @@
     if (el) el.textContent = text;
   }
   function startChesstempoMirror() {
-    hookOpeningExplorer();
+    injectPageWorldHook();
+    listenPageFenEvents();
     const uiInterval = setInterval(() => {
       injectUi();
       if (document.getElementById(BTN_ID)) clearInterval(uiInterval);
@@ -1634,14 +1664,15 @@
   function startLichessMirror() {
     const fromUrl = parsePamMirrorParam();
     if (fromUrl) setMirrorSessionId(fromUrl);
-    const sessionId = getMirrorSessionId();
-    if (!sessionId) return;
     void waitForLichessAnalysis().then(() => {
-      console.info("[ct-mirror] Lichess mirror target", sessionId);
+      console.info("[ct-mirror] Lichess mirror listening", {
+        pamMirror: fromUrl,
+        target: getMirrorSessionId()
+      });
     });
     onMirrorPayload((payload) => {
-      const myId = getMirrorSessionId();
-      if (!myId || !shouldApply(payload, myId)) return;
+      if (!shouldApply(payload)) return;
+      if (!getMirrorSessionId()) setMirrorSessionId(payload.targetId);
       void applyPosition(payload.fen, payload.prevFen);
     });
   }
