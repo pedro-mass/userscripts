@@ -1,28 +1,27 @@
 export const MIRROR_BTN_ID = 'pam-ct-open-lichess';
 export const MIRROR_BTN_LABEL = 'mirror in lichess';
 const STYLE_ID = 'pam-ct-mirror-btn-style';
-const UI_VERSION = '2';
+const UI_VERSION = '3';
 
-/** Lichess dark UI + board greens (site palette, not official assets). */
+/** Lichess site chrome: dark brown-gray, cream text, blue links (not board square colors). */
 const C = {
   bg: '#302e2b',
   bgHover: '#363430',
   border: '#484541',
-  borderHover: '#629924',
+  borderHover: '#5c5a57',
   text: '#e8e6e3',
-  green: '#629924',
-  boardLight: '#baca44',
-  boardDark: '#769656',
-  focus: '#3692e7',
+  muted: '#bababa',
+  accent: '#3692e7',
+  accentSoft: 'rgba(54, 146, 231, 0.35)',
 };
 
-/** Horizontal flip / mirror (chevrons toward center axis). */
+/** Horizontal flip / mirror toward center axis. */
 const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-  <path d="M12 4v16" stroke="${C.boardDark}" stroke-width="1.75" stroke-linecap="round"/>
-  <path d="M16 8l3.5 4L16 16" stroke="${C.boardLight}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M8 8L4.5 12 8 16" stroke="${C.boardLight}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="5" y="6" width="5" height="12" rx="1" fill="${C.boardDark}" fill-opacity="0.35"/>
-  <rect x="14" y="6" width="5" height="12" rx="1" fill="${C.boardLight}" fill-opacity="0.28"/>
+  <path d="M12 4v16" stroke="${C.muted}" stroke-width="1.75" stroke-linecap="round"/>
+  <path d="M16 8l3.5 4L16 16" stroke="${C.accent}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M8 8L4.5 12 8 16" stroke="${C.accent}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="5" y="6" width="5" height="12" rx="1" fill="${C.muted}" fill-opacity="0.2"/>
+  <rect x="14" y="6" width="5" height="12" rx="1" fill="${C.text}" fill-opacity="0.12"/>
 </svg>`;
 
 export function ensureMirrorButtonStyles(): void {
@@ -59,7 +58,7 @@ export function ensureMirrorButtonStyles(): void {
       border-color: ${C.borderHover};
       transform: translateY(-1px);
       box-shadow:
-        0 6px 18px rgba(98, 153, 36, 0.22),
+        0 6px 18px ${C.accentSoft},
         0 4px 12px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
@@ -67,7 +66,7 @@ export function ensureMirrorButtonStyles(): void {
       transform: translateY(0);
     }
     #${MIRROR_BTN_ID}:focus-visible {
-      outline: 2px solid ${C.focus};
+      outline: 2px solid ${C.accent};
       outline-offset: 3px;
     }
     #${MIRROR_BTN_ID} .pam-ct-mirror-icon {
