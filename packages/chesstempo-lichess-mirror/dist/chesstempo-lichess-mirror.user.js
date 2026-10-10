@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChessTempo → Lichess mirror
 // @namespace    https://github.com/pedro-mass/userscripts/chesstempo-lichess-mirror
-// @version      0.1.21
+// @version      0.1.22
 // @author       pedro-mass
 // @description  Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).
 // @license      GPL-3.0-only
@@ -29,8 +29,8 @@
   function scriptVersion() {
     var _a;
     try {
-      if ("0.1.21") {
-        return "0.1.21";
+      if ("0.1.22") {
+        return "0.1.22";
       }
     } catch {
     }
@@ -1770,7 +1770,7 @@
       }
     } catch {
     }
-    return "flip";
+    return "arrow";
   }
   function ensureMirrorButtonStyles() {
     const existing = document.getElementById(STYLE_ID);

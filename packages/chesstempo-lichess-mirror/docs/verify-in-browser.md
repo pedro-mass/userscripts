@@ -75,8 +75,8 @@ Turn off: `localStorage.removeItem('pamCtMirrorDebug')`.
 On ChessTempo, DevTools console:
 
 ```js
-// flip | external | sync | split | arrow
-localStorage.pamCtMirrorIcon = 'sync';
+// flip | external | sync | split | arrow (default: arrow)
+localStorage.pamCtMirrorIcon = 'flip';
 location.reload();
 ```
 

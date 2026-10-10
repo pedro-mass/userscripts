@@ -76,7 +76,7 @@ export function resolveMirrorIconVariant(): MirrorIconVariant {
   } catch {
     /* private mode */
   }
-  return 'flip';
+  return 'arrow';
 }
 
 /** Dev/console: `localStorage.pamCtMirrorIcon = 'sync'; location.reload()` */
