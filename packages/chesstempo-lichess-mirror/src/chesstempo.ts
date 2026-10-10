@@ -4,6 +4,10 @@ import {
   readCurrentCtFen,
 } from './ct-fen';
 import { startChessBoardPoll } from './ct-board-poll';
+import {
+  MIRROR_BTN_ID,
+  applyMirrorButtonChrome,
+} from './ct-mirror-ui';
 import { hookOpeningExplorerSetPosition } from './ct-page-hook';
 import { analysisBoardUrl, pieceSideKey } from './fen';
 import { isDebugEnabled, mirrorLog } from './log';
@@ -19,14 +23,11 @@ import {
   setTargetId,
 } from './sync';
 
-const BTN_ID = 'pam-ct-open-lichess';
-const BTN_LABEL = 'mirror in lichess';
-
 let lastFen: string | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 function mirrorButton(): HTMLButtonElement | null {
-  return document.getElementById(BTN_ID) as HTMLButtonElement | null;
+  return document.getElementById(MIRROR_BTN_ID) as HTMLButtonElement | null;
 }
 
 function setButtonTitle(text: string): void {
@@ -49,15 +50,6 @@ function onFenChange(fen: string): void {
   }, 120);
 }
 
-function styleMirrorButton(btn: HTMLButtonElement): void {
-  btn.textContent = BTN_LABEL;
-  btn.type = 'button';
-  btn.style.cssText =
-    'pointer-events:auto;cursor:pointer;margin:0;padding:8px 14px;border-radius:999px;border:none;background:#3d3d3d;color:#fff;font:500 13px/1.2 system-ui,sans-serif;box-shadow:0 2px 12px rgba(0,0,0,0.35);white-space:nowrap;';
-  btn.title =
-    'Open Lichess analysis at this position and mirror further moves from ChessTempo';
-}
-
 function injectUi(): void {
   if (!document.body) return;
 
@@ -71,7 +63,7 @@ function injectUi(): void {
   let btn = mirrorButton();
   if (!btn) {
     btn = document.createElement('button');
-    btn.id = BTN_ID;
+    btn.id = MIRROR_BTN_ID;
     btn.addEventListener('click', () => {
       const fen = readCurrentCtFen(lastFen);
       const diag = fenDiagnostics();
@@ -94,7 +86,7 @@ function injectUi(): void {
     wrap.insertBefore(btn, wrap.firstChild);
   }
 
-  styleMirrorButton(btn);
+  applyMirrorButtonChrome(btn);
   if (isDebugEnabled()) {
     btn.title = 'Debug on — see console [ct-mirror]';
   }
