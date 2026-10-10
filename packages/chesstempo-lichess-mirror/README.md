@@ -2,11 +2,27 @@
 
 Tampermonkey userscript: while editing a repertoire on **ChessTempo opening training**, open **Lichess analysis** at the same position and keep the analysis board in sync when you navigate on CT.
 
+![mirror in lichess button on ChessTempo](./docs/assets/mirror-button-0.1.22.png)
+
+**Release notes:** [v0.1.22](./docs/RELEASE-v0.1.22.md)
+
 ## Install
 
-1. Build: `pnpm --filter @userscripts/chesstempo-lichess-mirror build`
-2. Install `dist/chesstempo-lichess-mirror.user.js` in Tampermonkey.
+1. Install Tampermonkey.
+2. Install the script (or use Tampermonkey “Check for userscript updates” if you already have it):
+
+   `https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesstempo-lichess-mirror/dist/chesstempo-lichess-mirror.user.js`
+
 3. Enable on `chesstempo.com` and `lichess.org`.
+
+From source:
+
+```bash
+cd repos/userscripts
+pnpm install
+pnpm --filter @userscripts/chesstempo-lichess-mirror build
+# install dist/chesstempo-lichess-mirror.user.js in Tampermonkey
+```
 
 ## Usage
 
