@@ -6,9 +6,7 @@ const PAYLOAD_KEY = 'ctLichessMirror.payload';
 const TARGET_KEY = 'ctLichessMirror.targetId';
 const SEQ_KEY = 'ctLichessMirror.seq';
 const APPLIED_SEQ_KEY = 'ctLichessMirror.lastAppliedSeq';
-const HEARTBEAT_KEY = 'ctLichessMirror.heartbeat';
 const SESSION_MIRROR = 'pamMirrorId';
-export const LICHESS_HEARTBEAT_TTL_MS = 10_000;
 
 function parsePayload(raw: unknown): MirrorPayload | null {
   if (raw == null) return null;
@@ -74,34 +72,6 @@ export function getPairingTargetId(): string | null {
 
 export function setTargetId(id: string): void {
   GM_setValue(TARGET_KEY, id);
-}
-
-export function clearTargetId(): void {
-  GM_setValue(TARGET_KEY, '');
-}
-
-export function touchLichessHeartbeat(targetId: string): void {
-  GM_setValue(HEARTBEAT_KEY, { targetId, ts: Date.now() });
-}
-
-export function getLichessHeartbeat(): {
-  targetId: string;
-  ts: number;
-} | null {
-  const raw = GM_getValue<{ targetId?: string; ts?: number } | undefined>(
-    HEARTBEAT_KEY,
-    undefined,
-  );
-  if (!raw || typeof raw.targetId !== 'string' || !Number.isFinite(raw.ts)) {
-    return null;
-  }
-  return { targetId: raw.targetId, ts: Number(raw.ts) };
-}
-
-export function isMirrorTabLive(targetId: string): boolean {
-  const hb = getLichessHeartbeat();
-  if (!hb || hb.targetId !== targetId) return false;
-  return Date.now() - hb.ts < LICHESS_HEARTBEAT_TTL_MS;
 }
 
 export function getLatestPayload(): MirrorPayload | null {

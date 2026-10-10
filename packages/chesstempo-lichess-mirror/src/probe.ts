@@ -7,11 +7,9 @@ import type { BottomColor } from './types';
 import {
   drainDiagnostics,
   getLastAppliedSeq,
-  getLichessHeartbeat,
   getMirrorSessionId,
   getPairingTargetId,
   getPublishedSeq,
-  getTargetId,
 } from './sync';
 import { scriptVersion } from './version';
 
@@ -35,8 +33,6 @@ export type MirrorProbeState = {
   publishedSeq: number | null;
   lastAppliedSeq: number | null;
   ctBottomColor?: BottomColor | null;
-  mirrorUiState?: string | null;
-  lichessHeartbeatAgeMs?: number | null;
   drain?: ReturnType<typeof drainDiagnostics>;
 };
 
@@ -95,19 +91,7 @@ export function writeDomProbe(partial: {
     publishedSeq: getPublishedSeq(),
     lastAppliedSeq: getLastAppliedSeq(),
     ...(location.hostname.includes('chesstempo.com')
-      ? {
-          ctBottomColor: readBottomColorFromBoard(),
-          mirrorUiState:
-            document
-              .getElementById('pam-ct-open-lichess')
-              ?.getAttribute('data-pam-mirror-state') ?? null,
-          lichessHeartbeatAgeMs: (() => {
-            const hb = getLichessHeartbeat();
-            const tid = getTargetId();
-            if (!hb || !tid || hb.targetId !== tid) return null;
-            return Date.now() - hb.ts;
-          })(),
-        }
+      ? { ctBottomColor: readBottomColorFromBoard() }
       : {}),
     ...(location.hostname === 'lichess.org'
       ? {
