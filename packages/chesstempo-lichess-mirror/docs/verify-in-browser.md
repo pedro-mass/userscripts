@@ -70,6 +70,18 @@ Before 0.1.2, logging was minimal — hard to diagnose “no position” / no sy
 
 Turn off: `localStorage.removeItem('pamCtMirrorDebug')`.
 
+## Mirror button icon (try variants)
+
+On ChessTempo, DevTools console:
+
+```js
+// flip | external | sync | split | arrow
+localStorage.pamCtMirrorIcon = 'sync';
+location.reload();
+```
+
+Reset: `localStorage.removeItem('pamCtMirrorIcon')`.
+
 ## Inject fallback (no Tampermonkey)
 
 `build` writes gitignored `dist/inject.js` (body only). Plain inject **does not** provide `GM_*` — sync will not cross tabs.
