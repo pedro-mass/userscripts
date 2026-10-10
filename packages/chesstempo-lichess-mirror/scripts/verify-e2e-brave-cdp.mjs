@@ -34,6 +34,12 @@ function readNodeFen(page) {
   return page.evaluate(() => window.site?.analysis?.node?.fen ?? null);
 }
 
+function readCgOrientation(page) {
+  return page.evaluate(
+    () => window.lichess?.chessground?.().state.orientation ?? null,
+  );
+}
+
 function readCtFen(page) {
   return page.evaluate(() => {
     try {
@@ -138,15 +144,27 @@ if (ctFen && pieceSideKey(ctFen).includes('PPPPPPPP/RNBQKBNR w')) {
   ctFen = await readCtFen(ct);
 }
 
+const expectedOrient =
+  new URL(li.url()).searchParams.get('pamOrient') === 'black'
+    ? 'black'
+    : 'white';
+
 let synced = false;
 let lastLiFen = liFenOpen;
+let liOrientation = await readCgOrientation(li);
 if (ctFen && pieceSideKey(ctFen).includes('3P4') && ctFen.includes(' b ')) {
   await playCtMove(ct, 'd7', 'd5');
   await ct.waitForTimeout(1000);
   ctFen = await readCtFen(ct);
   for (let i = 0; i < 30; i++) {
     lastLiFen = await readNodeFen(li);
-    if (ctFen && lastLiFen && pieceSideKey(ctFen) === pieceSideKey(lastLiFen)) {
+    liOrientation = await readCgOrientation(li);
+    if (
+      ctFen &&
+      lastLiFen &&
+      pieceSideKey(ctFen) === pieceSideKey(lastLiFen) &&
+      liOrientation === expectedOrient
+    ) {
       synced = true;
       break;
     }
@@ -155,7 +173,13 @@ if (ctFen && pieceSideKey(ctFen).includes('3P4') && ctFen.includes(' b ')) {
 } else {
   for (let i = 0; i < 25; i++) {
     lastLiFen = await readNodeFen(li);
-    if (ctFen && lastLiFen && pieceSideKey(ctFen) === pieceSideKey(lastLiFen)) {
+    liOrientation = await readCgOrientation(li);
+    if (
+      ctFen &&
+      lastLiFen &&
+      pieceSideKey(ctFen) === pieceSideKey(lastLiFen) &&
+      liOrientation === expectedOrient
+    ) {
       synced = true;
       break;
     }
@@ -175,6 +199,11 @@ const report = {
   ctFen,
   liFenOpen,
   liFenFinal: lastLiFen,
+  orientation: {
+    expected: expectedOrient,
+    final: liOrientation,
+    ok: liOrientation === expectedOrient,
+  },
   pairing: {
     ctTarget: finalCtProbe?.targetId,
     liPam: new URL(li.url()).searchParams.get('pamMirror'),

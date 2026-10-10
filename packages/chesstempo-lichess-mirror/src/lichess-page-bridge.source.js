@@ -26,19 +26,32 @@
       };
       tick();
     });
+  const pamOrientFromUrl = () => {
+    const v = new URLSearchParams(location.search).get('pamOrient');
+    return v === 'black' || v === 'white' ? v : 'white';
+  };
   const applyOrient = (bottomColor) => {
+    const want = bottomColor || pamOrientFromUrl();
     const g = window.lichess?.chessground?.();
-    if (g && bottomColor && g.state.orientation !== bottomColor) {
-      g.set({ orientation: bottomColor });
+    if (g && want && g.state.orientation !== want) {
+      g.set({ orientation: want });
     }
   };
+  const settleOrient = async (bottomColor) => {
+    applyOrient(bottomColor);
+    await new Promise((r) => setTimeout(r, 0));
+    applyOrient(bottomColor);
+    await new Promise((r) => setTimeout(r, 80));
+    applyOrient(bottomColor);
+  };
+  void waitPlayUci().then(() => settleOrient(pamOrientFromUrl()));
   document.addEventListener('pam-ct-apply-position', async (ev) => {
     const d = ev.detail || {};
     const { id, fen, uci, navigateUrl, bottomColor } = d;
     let result = 'failed';
     try {
       const playUci = await waitPlayUci();
-      applyOrient(bottomColor);
+      await settleOrient(bottomColor);
       const here = currentFen();
       if (here && pieceSideKey(here) === pieceSideKey(fen)) {
         result = 'at_target';
@@ -52,6 +65,7 @@
             break;
           }
         }
+        if (result === 'played') await settleOrient(bottomColor);
       }
       if (result === 'failed' && navigateUrl && location.href !== navigateUrl) {
         result = 'navigating';
