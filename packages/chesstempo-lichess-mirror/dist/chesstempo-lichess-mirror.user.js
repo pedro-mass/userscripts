@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChessTempo → Lichess mirror
 // @namespace    https://github.com/pedro-mass/userscripts/chesstempo-lichess-mirror
-// @version      0.1.14
+// @version      0.1.15
 // @author       pedro-mass
 // @description  Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).
 // @license      GPL-3.0-only
@@ -29,8 +29,8 @@
   function scriptVersion() {
     var _a;
     try {
-      if ("0.1.14") {
-        return "0.1.14";
+      if ("0.1.15") {
+        return "0.1.15";
       }
     } catch {
     }
@@ -64,10 +64,18 @@
     fn(NS, `v${version}`, message, data ?? "");
     pushLog(entry);
   }
-  function readBottomColorFromBoard() {
-    const board = document.querySelector("chess-board");
-    if (board == null ? void 0 : board.classList.contains("flipped")) return "black";
+  function bottomColorFromBoardElement(board) {
+    if (!board) return "white";
+    if (board.classList.contains("flipped")) return "black";
+    const flippedAttr = board.getAttribute("flipped");
+    if (flippedAttr === "true" || flippedAttr === "") return "black";
+    if (board.hasAttribute("flipped") && flippedAttr !== "false") {
+      return "black";
+    }
     return "white";
+  }
+  function readBottomColorFromBoard() {
+    return bottomColorFromBoardElement(document.querySelector("chess-board"));
   }
   function readFenFromChessBoard() {
     const board = document.querySelector("chess-board");
@@ -1759,6 +1767,7 @@
       seq,
       publishedSeq: getPublishedSeq(),
       lastAppliedSeq: getLastAppliedSeq(),
+      ...location.hostname.includes("chesstempo.com") ? { ctBottomColor: readBottomColorFromBoard() } : {},
       ...location.hostname === "lichess.org" ? {
         drain: drainDiagnostics(),
         bridgeReady: window.__pamCtAnalysisReady ?? false

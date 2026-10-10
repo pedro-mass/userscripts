@@ -81,16 +81,28 @@ cleanupBefore = await cleanupMirrorTabs(ctx);
 const ctUrl =
   process.argv[2] ??
   'https://chesstempo.com/opening-training/repertoire/d4-dynamite-2026.10.08';
+const orientOnly = process.argv.includes('--orient-only');
 
-let ct = ctx.pages().find((p) => p.url().includes('opening-training'));
-if (!ct) {
-  ct = await ctx.newPage();
-  await ct.goto(ctUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
-} else if (!ct.url().includes('opening-training')) {
-  await ct.goto(ctUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
+function readCtBottomColor(page) {
+  return page.evaluate(() => {
+    const b = document.querySelector('chess-board');
+    if (!b) return 'white';
+    if (b.classList.contains('flipped')) return 'black';
+    const f = b.getAttribute('flipped');
+    if (f === 'true' || f === '') return 'black';
+    if (b.hasAttribute('flipped') && f !== 'false') return 'black';
+    return 'white';
+  });
 }
 
-await ct.reload({ waitUntil: 'domcontentloaded', timeout: 120_000 });
+const repSlug = ctUrl.split('/repertoire/')[1]?.replace(/\/$/, '') ?? '';
+let ct = ctx.pages().find((p) => p.url().includes('opening-training'));
+if (!ct) ct = await ctx.newPage();
+if (!ct.url().includes(repSlug)) {
+  await ct.goto(ctUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
+} else {
+  await ct.reload({ waitUntil: 'domcontentloaded', timeout: 120_000 });
+}
 await ct.waitForSelector('#pam-ct-open-lichess', { timeout: 60_000 });
 await ct.waitForTimeout(2000);
 const beforeCt = await readCtFen(ct);
@@ -136,6 +148,33 @@ await li.waitForFunction(() => !!window.lichess?.analysis?.playUci, null, {
 await li.waitForTimeout(1500);
 
 const liFenOpen = await readNodeFen(li);
+const ctBottomAtOpen = await readCtBottomColor(ct);
+const pamOrientAtOpen = new URL(li.url()).searchParams.get('pamOrient');
+const liOrientAtOpen = await readCgOrientation(li);
+const orientMatchOpen =
+  pamOrientAtOpen === ctBottomAtOpen &&
+  liOrientAtOpen === ctBottomAtOpen;
+
+if (orientOnly) {
+  cleanupAfter = await cleanupMirrorTabs(ctx);
+  const report = {
+    ok: orientMatchOpen,
+    orientOnly: true,
+    ctUrl,
+    ctBottomAtOpen,
+    pamOrientAtOpen,
+    liOrientAtOpen,
+    lichessUrl: li.url().slice(0, 120),
+    cleanupAfter,
+  };
+  console.log(JSON.stringify(report, null, 2));
+  try {
+    await browser.close();
+  } catch {
+    /* ok */
+  }
+  process.exit(orientMatchOpen ? 0 : 1);
+}
 
 let ctFen = await readCtFen(ct);
 if (ctFen && pieceSideKey(ctFen).includes('PPPPPPPP/RNBQKBNR w')) {
@@ -200,6 +239,10 @@ const report = {
   liFenOpen,
   liFenFinal: lastLiFen,
   orientation: {
+    ctBottomAtOpen,
+    pamOrientAtOpen,
+    liOrientAtOpen,
+    openOk: orientMatchOpen,
     expected: expectedOrient,
     final: liOrientation,
     ok: liOrientation === expectedOrient,

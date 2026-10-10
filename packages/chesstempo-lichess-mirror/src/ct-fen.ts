@@ -4,11 +4,22 @@ import type { BottomColor } from './types';
 type ChessBoardEl = HTMLElement & { toFen?: () => string };
 type ExplorerEl = HTMLElement & { fen?: string; setPosition?: (fen: string) => void };
 
-/** CT `chess-board`: flipped class means black at bottom. */
-export function readBottomColorFromBoard(): BottomColor {
-  const board = document.querySelector('chess-board');
-  if (board?.classList.contains('flipped')) return 'black';
+/** CT `chess-board`: black at bottom when flipped (class or attribute). */
+export function bottomColorFromBoardElement(
+  board: Pick<Element, 'classList' | 'getAttribute' | 'hasAttribute'> | null,
+): BottomColor {
+  if (!board) return 'white';
+  if (board.classList.contains('flipped')) return 'black';
+  const flippedAttr = board.getAttribute('flipped');
+  if (flippedAttr === 'true' || flippedAttr === '') return 'black';
+  if (board.hasAttribute('flipped') && flippedAttr !== 'false') {
+    return 'black';
+  }
   return 'white';
+}
+
+export function readBottomColorFromBoard(): BottomColor {
+  return bottomColorFromBoardElement(document.querySelector('chess-board'));
 }
 
 export function readFenFromChessBoard(): string | null {

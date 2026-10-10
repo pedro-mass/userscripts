@@ -54,7 +54,14 @@ function readProbe(page) {
       pamMirror: new URLSearchParams(location.search).get('pamMirror'),
       pamOrient: new URLSearchParams(location.search).get('pamOrient'),
       cgOrientation: window.lichess?.chessground?.().state.orientation ?? null,
-      ctFlipped: !!document.querySelector('chess-board')?.classList?.contains('flipped'),
+      ctFlipped: (() => {
+        const b = document.querySelector('chess-board');
+        if (!b) return false;
+        return (
+          b.classList.contains('flipped') ||
+          b.getAttribute('flipped') === 'true'
+        );
+      })(),
       hasPlayUci: !!window.lichess?.analysis?.playUci,
     };
   });

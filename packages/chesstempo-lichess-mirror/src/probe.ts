@@ -1,4 +1,9 @@
-import { readFenFromChessBoard, readFenFromExplorerElement } from './ct-fen';
+import {
+  readBottomColorFromBoard,
+  readFenFromChessBoard,
+  readFenFromExplorerElement,
+} from './ct-fen';
+import type { BottomColor } from './types';
 import {
   drainDiagnostics,
   getLastAppliedSeq,
@@ -27,6 +32,7 @@ export type MirrorProbeState = {
   seq: number | null;
   publishedSeq: number | null;
   lastAppliedSeq: number | null;
+  ctBottomColor?: BottomColor | null;
   drain?: ReturnType<typeof drainDiagnostics>;
 };
 
@@ -84,6 +90,9 @@ export function writeDomProbe(partial: {
     seq,
     publishedSeq: getPublishedSeq(),
     lastAppliedSeq: getLastAppliedSeq(),
+    ...(location.hostname.includes('chesstempo.com')
+      ? { ctBottomColor: readBottomColorFromBoard() }
+      : {}),
     ...(location.hostname === 'lichess.org'
       ? {
           drain: drainDiagnostics(),
