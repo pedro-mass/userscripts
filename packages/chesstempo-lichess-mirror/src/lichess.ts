@@ -12,6 +12,7 @@ import type { BottomColor, MirrorPayload } from './types';
 import {
   getLatestPayload,
   getMirrorSessionId,
+  getPairingTargetId,
   getTargetId,
   initLastAppliedSeqFromStorage,
   markPayloadApplied,
@@ -19,6 +20,7 @@ import {
   setMirrorSessionId,
   setTargetId,
   shouldApply,
+  touchLichessHeartbeat,
 } from './sync';
 
 type ApplyResult = 'at_target' | 'played' | 'navigating' | 'failed';
@@ -169,6 +171,10 @@ export function startLichessMirror(): void {
       const p = getLatestPayload();
       if (p) void drainPayload(p);
     }, 400);
+    setInterval(() => {
+      const id = getPairingTargetId();
+      if (id) touchLichessHeartbeat(id);
+    }, 2000);
   });
 
   setInterval(() => writeDomProbe({}), 2000);

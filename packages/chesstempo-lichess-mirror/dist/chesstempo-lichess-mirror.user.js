@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChessTempo → Lichess mirror
 // @namespace    https://github.com/pedro-mass/userscripts/chesstempo-lichess-mirror
-// @version      0.1.19
+// @version      0.1.20
 // @author       pedro-mass
 // @description  Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).
 // @license      GPL-3.0-only
@@ -29,8 +29,8 @@
   function scriptVersion() {
     var _a;
     try {
-      if ("0.1.19") {
-        return "0.1.19";
+      if ("0.1.20") {
+        return "0.1.20";
       }
     } catch {
     }
@@ -1546,7 +1546,9 @@
   const TARGET_KEY = "ctLichessMirror.targetId";
   const SEQ_KEY = "ctLichessMirror.seq";
   const APPLIED_SEQ_KEY = "ctLichessMirror.lastAppliedSeq";
+  const HEARTBEAT_KEY = "ctLichessMirror.heartbeat";
   const SESSION_MIRROR = "pamMirrorId";
+  const LICHESS_HEARTBEAT_TTL_MS = 1e4;
   function parsePayload(raw) {
     if (raw == null) return null;
     let obj;
@@ -1599,6 +1601,27 @@
   }
   function setTargetId(id) {
     GM_setValue(TARGET_KEY, id);
+  }
+  function clearTargetId() {
+    GM_setValue(TARGET_KEY, "");
+  }
+  function touchLichessHeartbeat(targetId) {
+    GM_setValue(HEARTBEAT_KEY, { targetId, ts: Date.now() });
+  }
+  function getLichessHeartbeat() {
+    const raw = GM_getValue(
+      HEARTBEAT_KEY,
+      void 0
+    );
+    if (!raw || typeof raw.targetId !== "string" || !Number.isFinite(raw.ts)) {
+      return null;
+    }
+    return { targetId: raw.targetId, ts: Number(raw.ts) };
+  }
+  function isMirrorTabLive(targetId) {
+    const hb = getLichessHeartbeat();
+    if (!hb || hb.targetId !== targetId) return false;
+    return Date.now() - hb.ts < LICHESS_HEARTBEAT_TTL_MS;
   }
   function getLatestPayload() {
     return parsePayload(GM_getValue(PAYLOAD_KEY, void 0));
@@ -1703,22 +1726,20 @@
   const MIRROR_BTN_ID = "pam-ct-open-lichess";
   const MIRROR_BTN_LABEL = "mirror in lichess";
   const STYLE_ID = "pam-ct-mirror-btn-style";
-  const UI_VERSION = "4";
+  const UI_VERSION = "5";
   const C = {
     bg: "#302e2b",
     bgHover: "#363430",
     border: "#484541",
     borderHover: "#6d6a67",
     text: "#e8e6e3",
-    muted: "#bababa",
+    muted: "#9a9691",
     accent: "#3692e7"
   };
-  const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
   <path d="M12 4v16" stroke="${C.muted}" stroke-width="1.75" stroke-linecap="round"/>
   <path d="M16 8l3.5 4L16 16" stroke="${C.accent}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M8 8L4.5 12 8 16" stroke="${C.accent}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="5" y="6" width="5" height="12" rx="1" fill="${C.muted}" fill-opacity="0.18"/>
-  <rect x="14" y="6" width="5" height="12" rx="1" fill="${C.text}" fill-opacity="0.1"/>
 </svg>`;
   function ensureMirrorButtonStyles() {
     const existing = document.getElementById(STYLE_ID);
@@ -1734,22 +1755,45 @@
       margin: 0;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 9px 14px 9px 11px;
-      border-radius: 6px;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 4px;
       border: 1px solid ${C.border};
       background: ${C.bg};
-      color: ${C.text};
-      font: 500 13px/1.25 system-ui, -apple-system, Segoe UI, sans-serif;
-      letter-spacing: 0.01em;
+      color: ${C.muted};
+      font: 400 11px/1.2 system-ui, -apple-system, Segoe UI, sans-serif;
+      letter-spacing: 0.02em;
       text-transform: lowercase;
       white-space: nowrap;
       box-shadow: none;
-      transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+      transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease, padding 0.12s ease;
     }
     #${MIRROR_BTN_ID}:hover {
       background: ${C.bgHover};
       border-color: ${C.borderHover};
+      color: ${C.text};
+      padding-right: 10px;
+    }
+    #${MIRROR_BTN_ID}:hover .pam-ct-mirror-label,
+    #${MIRROR_BTN_ID}[data-pam-mirror-state="live"] .pam-ct-mirror-label,
+    #${MIRROR_BTN_ID}[data-pam-mirror-state="pending"] .pam-ct-mirror-label {
+      max-width: 6rem;
+      opacity: 1;
+      margin-left: 2px;
+    }
+    #${MIRROR_BTN_ID}[data-pam-mirror-state="live"] {
+      border-color: rgba(54, 146, 231, 0.45);
+      color: ${C.text};
+      padding-right: 10px;
+    }
+    #${MIRROR_BTN_ID}[data-pam-mirror-state="live"] .pam-ct-mirror-dot {
+      opacity: 1;
+      transform: scale(1);
+    }
+    #${MIRROR_BTN_ID}[data-pam-mirror-state="pending"] {
+      border-style: dashed;
+      border-color: ${C.borderHover};
+      color: ${C.muted};
     }
     #${MIRROR_BTN_ID}:active {
       background: #2a2825;
@@ -1762,31 +1806,63 @@
       display: inline-flex;
       flex-shrink: 0;
       line-height: 0;
-      opacity: 0.95;
+      opacity: 0.88;
+    }
+    #${MIRROR_BTN_ID} .pam-ct-mirror-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: ${C.accent};
+      opacity: 0;
+      transform: scale(0.6);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      flex-shrink: 0;
     }
     #${MIRROR_BTN_ID} .pam-ct-mirror-label {
-      padding-right: 1px;
+      max-width: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-width 0.15s ease, opacity 0.15s ease;
     }
   `;
     document.head.append(style);
   }
-  const DEFAULT_TITLE = "Open Lichess analysis and mirror moves from ChessTempo";
-  function applyMirrorButtonChrome(btn) {
+  const TITLES = {
+    idle: "Open Lichess analysis and mirror moves from ChessTempo",
+    pending: "Opening Lichess tab…",
+    live: "Mirroring live — close the Lichess tab to stop"
+  };
+  const LABELS = {
+    idle: "lichess",
+    pending: "…",
+    live: "live"
+  };
+  function setMirrorButtonState(btn, state) {
+    btn.dataset.pamMirrorState = state;
+    btn.setAttribute("aria-label", MIRROR_BTN_LABEL);
+    const label = btn.querySelector(".pam-ct-mirror-label");
+    if (label) label.textContent = LABELS[state];
+    btn.title = TITLES[state];
+  }
+  function applyMirrorButtonChrome(btn, state = "idle") {
     ensureMirrorButtonStyles();
     btn.type = "button";
     let icon = btn.querySelector(".pam-ct-mirror-icon");
+    let dot = btn.querySelector(".pam-ct-mirror-dot");
     let label = btn.querySelector(".pam-ct-mirror-label");
-    if (!icon || !label) {
+    if (!icon || !label || !dot) {
       btn.replaceChildren();
       icon = document.createElement("span");
       icon.className = "pam-ct-mirror-icon";
+      dot = document.createElement("span");
+      dot.className = "pam-ct-mirror-dot";
+      dot.setAttribute("aria-hidden", "true");
       label = document.createElement("span");
       label.className = "pam-ct-mirror-label";
-      btn.append(icon, label);
+      btn.append(icon, dot, label);
     }
     icon.innerHTML = ICON_SVG;
-    label.textContent = MIRROR_BTN_LABEL;
-    btn.title = btn.title || DEFAULT_TITLE;
+    setMirrorButtonState(btn, state);
   }
   const hookedExplorers = /* @__PURE__ */ new WeakSet();
   function hookOpeningExplorerSetPosition(onFen) {
@@ -1837,6 +1913,7 @@
     document.body.append(el);
   }
   function writeDomProbe(partial) {
+    var _a;
     const anchor = document.getElementById(PROBE_WRAP_ID);
     if (!anchor) return;
     const seq = partial.seq ?? GM_getValue("ctLichessMirror.seq", null) ?? null;
@@ -1855,7 +1932,16 @@
       seq,
       publishedSeq: getPublishedSeq(),
       lastAppliedSeq: getLastAppliedSeq(),
-      ...location.hostname.includes("chesstempo.com") ? { ctBottomColor: readBottomColorFromBoard() } : {},
+      ...location.hostname.includes("chesstempo.com") ? {
+        ctBottomColor: readBottomColorFromBoard(),
+        mirrorUiState: ((_a = document.getElementById("pam-ct-open-lichess")) == null ? void 0 : _a.getAttribute("data-pam-mirror-state")) ?? null,
+        lichessHeartbeatAgeMs: (() => {
+          const hb = getLichessHeartbeat();
+          const tid = getTargetId();
+          if (!hb || !tid || hb.targetId !== tid) return null;
+          return Date.now() - hb.ts;
+        })()
+      } : {},
       ...location.hostname === "lichess.org" ? {
         drain: drainDiagnostics(),
         bridgeReady: window.__pamCtAnalysisReady ?? false
@@ -1874,12 +1960,53 @@
   }
   let lastFen = null;
   let debounceTimer = null;
+  let pendingSince = 0;
+  const PENDING_GIVE_UP_MS = 2e4;
   function mirrorButton() {
     return document.getElementById(MIRROR_BTN_ID);
   }
-  function setButtonTitle(text) {
+  function resolveMirrorUiState() {
+    const targetId = getTargetId();
+    if (!targetId) return "idle";
+    if (isMirrorTabLive(targetId)) return "live";
+    return "pending";
+  }
+  function refreshMirrorUiState() {
     const btn = mirrorButton();
-    if (btn) btn.title = text;
+    if (!btn) return;
+    const targetId = getTargetId();
+    const state = resolveMirrorUiState();
+    if (!targetId) {
+      pendingSince = 0;
+      setMirrorButtonState(btn, "idle");
+      return;
+    }
+    if (state === "live") {
+      pendingSince = 0;
+      setMirrorButtonState(btn, "live");
+      return;
+    }
+    if (!pendingSince) pendingSince = Date.now();
+    if (Date.now() - pendingSince > PENDING_GIVE_UP_MS) {
+      mirrorLog("info", "mirror session cleared (lichess tab gone)");
+      clearTargetId();
+      pendingSince = 0;
+      setMirrorButtonState(btn, "idle");
+      return;
+    }
+    setMirrorButtonState(btn, "pending");
+  }
+  function onMirrorTabGone() {
+    clearTargetId();
+    pendingSince = 0;
+    refreshMirrorUiState();
+  }
+  function wireTabClosed(tab) {
+    if (!tab) return;
+    tab.onclosed = () => {
+      mirrorLog("info", "lichess tab closed (onclosed)");
+      onMirrorTabGone();
+    };
   }
   function onFenChange(fen) {
     if (lastFen && pieceSideKey(lastFen) === pieceSideKey(fen)) return;
@@ -1911,23 +2038,28 @@
         const diag = fenDiagnostics();
         mirrorLog("info", "mirror in lichess click", { fen, ...diag });
         if (!fen) {
-          setButtonTitle("No position — reload training or check console [ct-mirror]");
+          setMirrorButtonState(btn, "idle");
+          btn.title = "No position — reload training or check console [ct-mirror]";
           mirrorLog("warn", "no FEN", diag);
           return;
         }
         const pairId = crypto.randomUUID();
         const bottomColor = readBottomColorFromBoard();
         setTargetId(pairId);
+        pendingSince = Date.now();
         lastFen = fen;
         publishFromCt(fen, null, pairId, bottomColor);
-        GM_openInTab(analysisBoardUrl(fen, pairId, bottomColor), { active: true });
-        setButtonTitle("Mirroring — play moves on ChessTempo");
+        const tab = GM_openInTab(analysisBoardUrl(fen, pairId, bottomColor), {
+          active: true
+        });
+        wireTabClosed(tab);
+        setMirrorButtonState(btn, "pending");
         mirrorLog("info", "opened tab", { pairId, fen });
         writeDomProbe({ lastFen: fen });
       });
       wrap.insertBefore(btn, wrap.firstChild);
     }
-    applyMirrorButtonChrome(btn);
+    applyMirrorButtonChrome(btn, resolveMirrorUiState());
     if (isDebugEnabled()) {
       btn.title = "Debug on — see console [ct-mirror]";
     }
@@ -1943,6 +2075,7 @@
     startChessBoardPoll(onFenChange);
     const mount = () => {
       injectUi();
+      refreshMirrorUiState();
       const fen = readCurrentCtFen(lastFen);
       if (fen && !lastFen) {
         lastFen = fen;
@@ -1956,7 +2089,10 @@
       if (mirrorButton()) clearInterval(uiInterval);
     }, 500);
     setTimeout(() => clearInterval(uiInterval), 12e4);
-    setInterval(() => writeDomProbe({ lastFen }), 2e3);
+    setInterval(() => {
+      writeDomProbe({ lastFen });
+      refreshMirrorUiState();
+    }, 2e3);
   }
   const bridgeSource = "/* Runs in the page main world (not TM isolated world). */\n(() => {\n  if (window.__pamCtLichessBridge) return;\n  const pieceSideKey = (fen) => {\n    const p = fen.trim().split(/\\s+/);\n    return `${p[0]} ${p[1]}`;\n  };\n  const currentFen = () => window.site?.analysis?.node?.fen ?? null;\n  const waitPlayUci = () =>\n    new Promise((resolve) => {\n      if (window.lichess?.analysis?.playUci) {\n        resolve(window.lichess.analysis.playUci);\n        return;\n      }\n      const deadline = Date.now() + 60_000;\n      const tick = () => {\n        if (window.lichess?.analysis?.playUci) {\n          resolve(window.lichess.analysis.playUci);\n          return;\n        }\n        if (Date.now() > deadline) {\n          resolve(null);\n          return;\n        }\n        setTimeout(tick, 50);\n      };\n      tick();\n    });\n  const pamOrientFromUrl = () => {\n    const v = new URLSearchParams(location.search).get('pamOrient');\n    return v === 'black' || v === 'white' ? v : 'white';\n  };\n  const applyOrient = (bottomColor) => {\n    const want = bottomColor || pamOrientFromUrl();\n    const g = window.lichess?.chessground?.();\n    if (g && want && g.state.orientation !== want) {\n      g.set({ orientation: want });\n    }\n  };\n  const settleOrient = async (bottomColor) => {\n    applyOrient(bottomColor);\n    await new Promise((r) => setTimeout(r, 0));\n    applyOrient(bottomColor);\n    await new Promise((r) => setTimeout(r, 80));\n    applyOrient(bottomColor);\n  };\n  void waitPlayUci().then(() => settleOrient(pamOrientFromUrl()));\n  document.addEventListener('pam-ct-apply-position', async (ev) => {\n    const d = ev.detail || {};\n    const { id, fen, uci, navigateUrl, bottomColor } = d;\n    let result = 'failed';\n    try {\n      const playUci = await waitPlayUci();\n      await settleOrient(bottomColor);\n      const here = currentFen();\n      if (here && pieceSideKey(here) === pieceSideKey(fen)) {\n        result = 'at_target';\n      } else if (playUci && uci) {\n        playUci(uci);\n        for (let i = 0; i < 40; i++) {\n          await new Promise((r) => setTimeout(r, 40));\n          const after = currentFen();\n          if (after && pieceSideKey(after) === pieceSideKey(fen)) {\n            result = 'played';\n            break;\n          }\n        }\n        if (result === 'played') await settleOrient(bottomColor);\n      }\n      if (result === 'failed' && navigateUrl && location.href !== navigateUrl) {\n        result = 'navigating';\n        location.assign(navigateUrl);\n      } else if (result === 'failed' && here && pieceSideKey(here) === pieceSideKey(fen)) {\n        result = 'at_target';\n      }\n    } catch (e) {\n      result = 'failed';\n    }\n    document.dispatchEvent(\n      new CustomEvent('pam-ct-apply-result', { detail: { id, result } }),\n    );\n  });\n  window.__pamCtLichessBridge = true;\n  document.dispatchEvent(new CustomEvent('pam-ct-bridge-ready'));\n})();\n";
   function installPageBridge() {
@@ -2089,6 +2225,10 @@
         const p = getLatestPayload();
         if (p) void drainPayload(p);
       }, 400);
+      setInterval(() => {
+        const id = getPairingTargetId();
+        if (id) touchLichessHeartbeat(id);
+      }, 2e3);
     });
     setInterval(() => writeDomProbe({}), 2e3);
     onMirrorPayload((payload) => {
