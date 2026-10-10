@@ -9,7 +9,7 @@ Tampermonkey userscript: while editing a repertoire on **ChessTempo opening trai
 ## Install
 
 1. Install Tampermonkey.
-2. Install the script (or use Tampermonkey “Check for userscript updates” if you already have it):
+2. Install from **Greasy Fork** (once listed) or the raw GitHub script (Tampermonkey “Check for userscript updates” if already installed):
 
    `https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesstempo-lichess-mirror/dist/chesstempo-lichess-mirror.user.js`
 

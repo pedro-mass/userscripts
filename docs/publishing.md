@@ -1,6 +1,6 @@
 # Publishing userscripts
 
-**Active scripts:** [live-chart-filter](../packages/live-chart-filter/) (LiveChart.me), [chesscom-lichess-export](../packages/chesscom-lichess-export/) (Chess.com → Lichess), and [cursor-spend-pace](../packages/cursor-spend-pace/) (Cursor spending dashboard).
+**Active scripts:** [live-chart-filter](../packages/live-chart-filter/) (LiveChart.me), [chesscom-lichess-export](../packages/chesscom-lichess-export/) (Chess.com → Lichess), [chesstempo-lichess-mirror](../packages/chesstempo-lichess-mirror/) (ChessTempo → Lichess), and [cursor-spend-pace](../packages/cursor-spend-pace/) (Cursor spending dashboard).
 
 ## Greasy Fork CLI (repeatable)
 
@@ -67,6 +67,21 @@ If the listing still points at a repo-root `.user.js` file:
 2. Open [script 547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) → **Manage**.
 3. Set sync URL to the **raw** link above (not a `github.com/.../blob/...` URL).
 4. **Sync now** → confirm **Code** tab shows v1.8+ from `packages/live-chart-filter/`.
+
+## ChessTempo → Lichess mirror (chesstempo-lichess-mirror)
+
+| | |
+| --- | --- |
+| **Package** | `packages/chesstempo-lichess-mirror/` |
+| **Sync URL** | `https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesstempo-lichess-mirror/dist/chesstempo-lichess-mirror.user.js` |
+| **First publish** | `pnpm greasyfork:publish chesstempo-lichess-mirror --build --write-script-id` |
+
+### Release workflow
+
+1. Edit `packages/chesstempo-lichess-mirror/src/`.
+2. Bump `version` in `vite.config.ts` and `package.json`.
+3. `pnpm --filter @userscripts/chesstempo-lichess-mirror build`, commit `dist/`, push to `main`.
+4. `pnpm greasyfork:sync chesstempo-lichess-mirror` after push.
 
 ## Chess.com → Lichess (chesscom-lichess-export)
 
