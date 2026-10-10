@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChessTempo → Lichess mirror
 // @namespace    https://github.com/pedro-mass/userscripts/chesstempo-lichess-mirror
-// @version      0.1.18
+// @version      0.1.19
 // @author       pedro-mass
 // @description  Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).
 // @license      GPL-3.0-only
@@ -29,8 +29,8 @@
   function scriptVersion() {
     var _a;
     try {
-      if ("0.1.18") {
-        return "0.1.18";
+      if ("0.1.19") {
+        return "0.1.19";
       }
     } catch {
     }
@@ -1703,23 +1703,22 @@
   const MIRROR_BTN_ID = "pam-ct-open-lichess";
   const MIRROR_BTN_LABEL = "mirror in lichess";
   const STYLE_ID = "pam-ct-mirror-btn-style";
-  const UI_VERSION = "3";
+  const UI_VERSION = "4";
   const C = {
     bg: "#302e2b",
     bgHover: "#363430",
     border: "#484541",
-    borderHover: "#5c5a57",
+    borderHover: "#6d6a67",
     text: "#e8e6e3",
     muted: "#bababa",
-    accent: "#3692e7",
-    accentSoft: "rgba(54, 146, 231, 0.35)"
+    accent: "#3692e7"
   };
   const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
   <path d="M12 4v16" stroke="${C.muted}" stroke-width="1.75" stroke-linecap="round"/>
   <path d="M16 8l3.5 4L16 16" stroke="${C.accent}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M8 8L4.5 12 8 16" stroke="${C.accent}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="5" y="6" width="5" height="12" rx="1" fill="${C.muted}" fill-opacity="0.2"/>
-  <rect x="14" y="6" width="5" height="12" rx="1" fill="${C.text}" fill-opacity="0.12"/>
+  <rect x="5" y="6" width="5" height="12" rx="1" fill="${C.muted}" fill-opacity="0.18"/>
+  <rect x="14" y="6" width="5" height="12" rx="1" fill="${C.text}" fill-opacity="0.1"/>
 </svg>`;
   function ensureMirrorButtonStyles() {
     const existing = document.getElementById(STYLE_ID);
@@ -1735,48 +1734,43 @@
       margin: 0;
       display: inline-flex;
       align-items: center;
-      gap: 9px;
-      padding: 10px 16px 10px 12px;
-      border-radius: 999px;
+      gap: 8px;
+      padding: 9px 14px 9px 11px;
+      border-radius: 6px;
       border: 1px solid ${C.border};
-      background: linear-gradient(180deg, ${C.bg} 0%, #262421 100%);
+      background: ${C.bg};
       color: ${C.text};
-      font: 600 13px/1.2 system-ui, -apple-system, Segoe UI, sans-serif;
-      letter-spacing: 0.02em;
+      font: 500 13px/1.25 system-ui, -apple-system, Segoe UI, sans-serif;
+      letter-spacing: 0.01em;
       text-transform: lowercase;
       white-space: nowrap;
-      box-shadow:
-        0 4px 14px rgba(0, 0, 0, 0.45),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
-      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      box-shadow: none;
+      transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
     }
     #${MIRROR_BTN_ID}:hover {
-      background: linear-gradient(180deg, ${C.bgHover} 0%, #2a2825 100%);
+      background: ${C.bgHover};
       border-color: ${C.borderHover};
-      transform: translateY(-1px);
-      box-shadow:
-        0 6px 18px ${C.accentSoft},
-        0 4px 12px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
     #${MIRROR_BTN_ID}:active {
-      transform: translateY(0);
+      background: #2a2825;
     }
     #${MIRROR_BTN_ID}:focus-visible {
       outline: 2px solid ${C.accent};
-      outline-offset: 3px;
+      outline-offset: 2px;
     }
     #${MIRROR_BTN_ID} .pam-ct-mirror-icon {
       display: inline-flex;
       flex-shrink: 0;
       line-height: 0;
+      opacity: 0.95;
     }
     #${MIRROR_BTN_ID} .pam-ct-mirror-label {
-      padding-right: 2px;
+      padding-right: 1px;
     }
   `;
     document.head.append(style);
   }
+  const DEFAULT_TITLE = "Open Lichess analysis and mirror moves from ChessTempo";
   function applyMirrorButtonChrome(btn) {
     ensureMirrorButtonStyles();
     btn.type = "button";
@@ -1792,9 +1786,7 @@
     }
     icon.innerHTML = ICON_SVG;
     label.textContent = MIRROR_BTN_LABEL;
-    if (!btn.title) {
-      btn.title = "Open Lichess analysis at this position and mirror further moves from ChessTempo";
-    }
+    btn.title = btn.title || DEFAULT_TITLE;
   }
   const hookedExplorers = /* @__PURE__ */ new WeakSet();
   function hookOpeningExplorerSetPosition(onFen) {
