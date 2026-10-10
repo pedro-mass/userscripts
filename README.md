@@ -36,7 +36,7 @@ pnpm build:lichess-position-notes
 | LiveChart filter | [Greasy Fork 547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) or `packages/live-chart-filter/dist/live-chart-filter.user.js` |
 | Chess.com → Lichess | [Greasy Fork 594491](https://greasyfork.org/en/scripts/594491-chess-com-lichess-export) or `packages/chesscom-lichess-export/dist/chesscom-lichess-export.user.js` |
 | Cursor spending pace | [Greasy Fork 595283](https://greasyfork.org/en/scripts/595283-cursor-spending-pace) or `packages/cursor-spend-pace/dist/cursor-spend-pace.user.js` |
-| ChessTempo → Lichess mirror | `packages/chesstempo-lichess-mirror/dist/chesstempo-lichess-mirror.user.js` (Greasy Fork after first publish) |
+| ChessTempo → Lichess mirror | [Greasy Fork 599484](https://greasyfork.org/en/scripts/599484-chesstempo-lichess-mirror) or `packages/chesstempo-lichess-mirror/dist/chesstempo-lichess-mirror.user.js` |
 | Lichess position notes | `packages/lichess-position-notes/dist/lichess-position-notes.user.js` (Greasy Fork TBD) |
 
 Dev: `pnpm dev` (LiveChart) · `pnpm dev:chesscom` · `pnpm dev:lichess-position-notes`
@@ -50,7 +50,7 @@ Dev: `pnpm dev` (LiveChart) · `pnpm dev:chesscom` · `pnpm dev:lichess-position
 | `live-chart-filter` | livechart.me | [547862](https://greasyfork.org/en/scripts/547862-livechart-me-minimum-rating-filter-with-themed-ui-persistent) | `dist/live-chart-filter.user.js` |
 | `chesscom-lichess-export` | chess.com | [594491](https://greasyfork.org/en/scripts/594491-chess-com-lichess-export) | `dist/chesscom-lichess-export.user.js` |
 | `cursor-spend-pace` | cursor.com | [595283](https://greasyfork.org/en/scripts/595283-cursor-spending-pace) | `dist/cursor-spend-pace.user.js` |
-| `chesstempo-lichess-mirror` | chesstempo.com + lichess.org | (first publish pending) | `dist/chesstempo-lichess-mirror.user.js` |
+| `chesstempo-lichess-mirror` | chesstempo.com + lichess.org | [599484](https://greasyfork.org/en/scripts/599484-chesstempo-lichess-mirror) | `dist/chesstempo-lichess-mirror.user.js` |
 | `lichess-position-notes` | lichess.org study | (publish pending) | `dist/lichess-position-notes.user.js` |
 
 ## Archived (unsupported)

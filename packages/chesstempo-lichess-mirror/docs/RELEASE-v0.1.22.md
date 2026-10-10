@@ -7,9 +7,7 @@ Mirror ChessTempo opening-training positions to a paired Lichess analysis tab, t
 ## Install (Tampermonkey)
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/) in your browser.
-2. Open the userscript (update URL tracks `main`):
-
-   [chesstempo-lichess-mirror.user.js](https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesstempo-lichess-mirror/dist/chesstempo-lichess-mirror.user.js)
+2. Install from [Greasy Fork](https://greasyfork.org/en/scripts/599484-chesstempo-lichess-mirror) or [raw GitHub](https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesstempo-lichess-mirror/dist/chesstempo-lichess-mirror.user.js) (update URL tracks `main`).
 
 3. Confirm matches for **ChessTempo opening training** and **Lichess analysis**.
 

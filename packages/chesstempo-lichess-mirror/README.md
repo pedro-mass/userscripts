@@ -4,12 +4,14 @@ Tampermonkey userscript: while editing a repertoire on **ChessTempo opening trai
 
 ![mirror in lichess button on ChessTempo](./docs/assets/mirror-button-0.1.22.png)
 
+**Greasy Fork:** [599484 - ChessTempo → Lichess mirror](https://greasyfork.org/en/scripts/599484-chesstempo-lichess-mirror)
+
 **Release notes:** [v0.1.22](./docs/RELEASE-v0.1.22.md)
 
 ## Install
 
 1. Install Tampermonkey.
-2. Install from **Greasy Fork** (once listed) or the raw GitHub script (Tampermonkey “Check for userscript updates” if already installed):
+2. Install from [Greasy Fork](https://greasyfork.org/en/scripts/599484-chesstempo-lichess-mirror) or the raw GitHub script (Tampermonkey “Check for userscript updates” if already installed):
 
    `https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesstempo-lichess-mirror/dist/chesstempo-lichess-mirror.user.js`
 

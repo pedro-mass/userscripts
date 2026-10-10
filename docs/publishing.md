@@ -74,7 +74,8 @@ If the listing still points at a repo-root `.user.js` file:
 | --- | --- |
 | **Package** | `packages/chesstempo-lichess-mirror/` |
 | **Sync URL** | `https://raw.githubusercontent.com/pedro-mass/userscripts/main/packages/chesstempo-lichess-mirror/dist/chesstempo-lichess-mirror.user.js` |
-| **First publish** | `pnpm greasyfork:publish chesstempo-lichess-mirror --build --write-script-id` |
+| **Listing** | [599484 - ChessTempo → Lichess mirror](https://greasyfork.org/en/scripts/599484-chesstempo-lichess-mirror) |
+| **First publish** | `pnpm greasyfork:publish chesstempo-lichess-mirror --build --write-script-id` (done) |
 
 ### Release workflow
 
