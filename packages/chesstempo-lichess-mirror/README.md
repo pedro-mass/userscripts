@@ -11,7 +11,7 @@ Tampermonkey userscript: while editing a repertoire on **ChessTempo opening trai
 ## Usage
 
 1. Open **ChessTempo** opening training / repertoire editor.
-2. Click **Open in Lichess** (top of right panel). A Lichess analysis tab opens with `?pamMirror=<id>`.
+2. Click **mirror in lichess** (floating button, bottom-right). A Lichess analysis tab opens with `?pamMirror=<id>`.
 3. Navigate on CT — the paired Lichess tab plays one move when possible, otherwise reloads analysis at the new FEN.
 
 Repertoire edits stay on ChessTempo only; Lichess is a read-only mirror for explorer / engine / LiChess Tools.

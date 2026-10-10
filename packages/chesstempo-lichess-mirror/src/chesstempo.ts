@@ -20,10 +20,19 @@ import {
 } from './sync';
 
 const BTN_ID = 'pam-ct-open-lichess';
-const STATUS_ID = 'pam-ct-mirror-status';
+const BTN_LABEL = 'mirror in lichess';
 
 let lastFen: string | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+function mirrorButton(): HTMLButtonElement | null {
+  return document.getElementById(BTN_ID) as HTMLButtonElement | null;
+}
+
+function setButtonTitle(text: string): void {
+  const btn = mirrorButton();
+  if (btn) btn.title = text;
+}
 
 function onFenChange(fen: string): void {
   if (lastFen && pieceSideKey(lastFen) === pieceSideKey(fen)) return;
@@ -31,8 +40,6 @@ function onFenChange(fen: string): void {
   lastFen = fen;
   const targetId = getTargetId();
   if (!targetId) return;
-
-  updateStatus(`Mirror → Lichess (${targetId.slice(0, 8)}…)`);
 
   if (debounceTimer) clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
@@ -42,60 +49,56 @@ function onFenChange(fen: string): void {
   }, 120);
 }
 
+function styleMirrorButton(btn: HTMLButtonElement): void {
+  btn.textContent = BTN_LABEL;
+  btn.type = 'button';
+  btn.style.cssText =
+    'pointer-events:auto;cursor:pointer;margin:0;padding:8px 14px;border-radius:999px;border:none;background:#3d3d3d;color:#fff;font:500 13px/1.2 system-ui,sans-serif;box-shadow:0 2px 12px rgba(0,0,0,0.35);white-space:nowrap;';
+  btn.title =
+    'Open Lichess analysis at this position and mirror further moves from ChessTempo';
+}
+
 function injectUi(): void {
-  if (document.getElementById(BTN_ID)) return;
   if (!document.body) return;
 
   ensureProbeHost();
   const wrap = document.getElementById(PROBE_WRAP_ID);
   if (!wrap) return;
 
-  const row = document.createElement('div');
-  row.style.cssText =
-    'display:flex;gap:8px;align-items:center;flex-wrap:wrap;pointer-events:auto;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.96);box-shadow:0 2px 10px rgba(0,0,0,0.15);';
+  document.getElementById('pam-ct-mirror-status')?.remove();
+  wrap.querySelector('[data-pam-ct-ui-row]')?.remove();
 
-  const btn = document.createElement('button');
-  btn.id = BTN_ID;
-  btn.type = 'button';
-  btn.textContent = 'Open in Lichess';
-  btn.title =
-    'Open Lichess analysis at this position and mirror further moves from ChessTempo';
-  btn.style.cssText =
-    'cursor:pointer;padding:6px 12px;border-radius:4px;border:1px solid #888;background:#2d5016;color:#fff;font-size:13px;';
+  let btn = mirrorButton();
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = BTN_ID;
+    btn.addEventListener('click', () => {
+      const fen = readCurrentCtFen(lastFen);
+      const diag = fenDiagnostics();
+      mirrorLog('info', 'mirror in lichess click', { fen, ...diag });
+      if (!fen) {
+        setButtonTitle('No position — reload training or check console [ct-mirror]');
+        mirrorLog('warn', 'no FEN', diag);
+        return;
+      }
+      const pairId = crypto.randomUUID();
+      const bottomColor = readBottomColorFromBoard();
+      setTargetId(pairId);
+      lastFen = fen;
+      publishFromCt(fen, null, pairId, bottomColor);
+      GM_openInTab(analysisBoardUrl(fen, pairId, bottomColor), { active: true });
+      setButtonTitle('Mirroring — play moves on ChessTempo');
+      mirrorLog('info', 'opened tab', { pairId, fen });
+      writeDomProbe({ lastFen: fen });
+    });
+    wrap.insertBefore(btn, wrap.firstChild);
+  }
 
-  const status = document.createElement('span');
-  status.id = STATUS_ID;
-  status.style.cssText = 'font-size:12px;color:#333;';
-  updateStatus(isDebugEnabled() ? 'debug on (console)' : '');
-
-  btn.addEventListener('click', () => {
-    const fen = readCurrentCtFen(lastFen);
-    const diag = fenDiagnostics();
-    mirrorLog('info', 'Open in Lichess click', { fen, ...diag });
-    if (!fen) {
-      updateStatus('No position — see console [ct-mirror]');
-      mirrorLog('warn', 'no FEN', diag);
-      return;
-    }
-    const pairId = crypto.randomUUID();
-    const bottomColor = readBottomColorFromBoard();
-    setTargetId(pairId);
-    lastFen = fen;
-    publishFromCt(fen, null, pairId, bottomColor);
-    GM_openInTab(analysisBoardUrl(fen, pairId, bottomColor), { active: true });
-    updateStatus(`Opened · mirror ${pairId.slice(0, 8)}…`);
-    mirrorLog('info', 'opened tab', { pairId, fen });
-    writeDomProbe({ lastFen: fen });
-  });
-
-  row.append(btn, status);
-  wrap.insertBefore(row, wrap.firstChild);
+  styleMirrorButton(btn);
+  if (isDebugEnabled()) {
+    btn.title = 'Debug on — see console [ct-mirror]';
+  }
   writeDomProbe({ lastFen });
-}
-
-function updateStatus(text: string): void {
-  const el = document.getElementById(STATUS_ID);
-  if (el) el.textContent = text;
 }
 
 export function startChesstempoMirror(): void {
@@ -121,7 +124,7 @@ export function startChesstempoMirror(): void {
 
   const uiInterval = setInterval(() => {
     mount();
-    if (document.getElementById(BTN_ID)) clearInterval(uiInterval);
+    if (mirrorButton()) clearInterval(uiInterval);
   }, 500);
   setTimeout(() => clearInterval(uiInterval), 120_000);
 
