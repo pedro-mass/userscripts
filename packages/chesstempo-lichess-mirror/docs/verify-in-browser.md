@@ -51,7 +51,13 @@ Manual acceptance: **Open in Lichess** → one new ply on CT → analysis animat
 
 ## Console noise on CT
 
-ChessTempo + some extensions (e.g. Tampermonkey `inject.js`) watch **attribute** mutations. Older mirror builds appended a probe `<script aria-hidden>` on `<html>` and triggered `Cannot read properties of null (reading 'aria-hidden')`. **0.1.6+** stores probe JSON on `#pam-ct-mirror-wrap` only and disconnects the explorer `MutationObserver` after hook.
+**`aria-hidden` / `inject.js`:** On Brave, stack usually points at **Video Speed Controller** (`chrome-extension://nffaoalbilbmmfgbnbgppjihopabppdk/inject.js`), not Tampermonkey. That extension runs a main-world `MutationObserver` on `aria-hidden`; ChessTempo’s board tears down nodes on each ply and the observer can read a detached parent → `Cannot read properties of null (reading 'aria-hidden')`. ChessTempo re-logs it as `cta error`. **Mitigation:** disable Video Speed Controller on `chesstempo.com` (or while training). Not caused by mirror sync logic in 0.1.12+.
+
+Older mirror builds made this worse by mutating `<html>` probe attributes; **0.1.6+** uses `#pam-ct-mirror-wrap` + comment probe only.
+
+**Other red lines:** CT often logs `router prefix` / `this._moveList` as `console.error` — site noise, not the userscript.
+
+**Lichess:** With 0.1.12 page bridge, verify runs typically show **no** mirror-related console errors.
 
 ## Debug logging
 
