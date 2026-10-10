@@ -21,7 +21,7 @@ export default defineConfig({
         version: pkg.version,
         author: 'pedro-mass',
         description:
-          'Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).',
+          'Combine ChessTempo transposition-aware opening training with Lichess database and free engine via a live mirrored analysis tab.',
         icon: 'https://lichess.org/favicon.ico',
         namespace:
           'https://github.com/pedro-mass/userscripts/chesstempo-lichess-mirror',

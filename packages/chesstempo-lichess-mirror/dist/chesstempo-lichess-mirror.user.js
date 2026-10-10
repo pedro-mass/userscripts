@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChessTempo → Lichess mirror
 // @namespace    https://github.com/pedro-mass/userscripts/chesstempo-lichess-mirror
-// @version      0.1.22
+// @version      0.1.23
 // @author       pedro-mass
-// @description  Mirror ChessTempo opening-training position to a Lichess analysis tab (Open in Lichess + live FEN sync).
+// @description  Combine ChessTempo transposition-aware opening training with Lichess database and free engine via a live mirrored analysis tab.
 // @license      GPL-3.0-only
 // @icon         https://lichess.org/favicon.ico
 // @homepageURL  https://github.com/pedro-mass/userscripts/tree/main/packages/chesstempo-lichess-mirror
@@ -29,8 +29,8 @@
   function scriptVersion() {
     var _a;
     try {
-      if ("0.1.22") {
-        return "0.1.22";
+      if ("0.1.23") {
+        return "0.1.23";
       }
     } catch {
     }

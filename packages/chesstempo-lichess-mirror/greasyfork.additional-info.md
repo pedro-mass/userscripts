@@ -1,6 +1,6 @@
-Mirror **ChessTempo opening training** to a paired **Lichess analysis** tab and keep the board in sync as you train.
+ChessTempo does an excellent job **highlighting transpositions** while you build and train opening repertoires. Lichess does an excellent job with its **opening database** and **free engine** on the analysis board. This script combines the two: you stay on ChessTempo for editing and transposition awareness, and keep a paired Lichess tab in sync for database and engine work.
 
-Click **mirror in lichess** on ChessTempo; play moves on CT and the Lichess tab follows (one ply when possible, otherwise navigates to the FEN). Repertoire edits stay on ChessTempo; Lichess is read-only for engines, explorer, and LiChess Tools.
+Click **mirror in lichess** on ChessTempo opening training. Play moves on CT and the Lichess tab follows (one ply when possible, otherwise navigates to the FEN). Repertoire edits stay on ChessTempo; Lichess is read-only for explorer, engine, and LiChess Tools.
 
 ### Screenshot
 

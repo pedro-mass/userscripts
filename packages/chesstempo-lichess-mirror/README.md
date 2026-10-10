@@ -1,6 +1,6 @@
 # ChessTempo → Lichess mirror
 
-Tampermonkey userscript: while editing a repertoire on **ChessTempo opening training**, open **Lichess analysis** at the same position and keep the analysis board in sync when you navigate on CT.
+Tampermonkey userscript that pairs **ChessTempo opening training** with **Lichess analysis**. ChessTempo excels at repertoires and highlighting **transpositions**; Lichess excels at the **opening database** and **free engine**. Mirror the board to Lichess and keep it in sync while you train on CT.
 
 ![mirror in lichess button on ChessTempo](./docs/assets/mirror-button-0.1.22.png)
 
